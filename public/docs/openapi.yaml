@@ -1,0 +1,2193 @@
+openapi: 3.0.3
+info:
+  title: AFIFI Backend API
+  description: >
+    REST API for the AFIFI e-commerce platform: catalog browsing, cart/wishlist,
+    checkout, orders, payments, returns, coupons, campaigns, CMS, settings, and
+    admin management. Authentication uses Laravel Sanctum bearer tokens.
+  version: "1.0.0"
+  contact:
+    name: AFIFI Backend
+servers:
+  - url: /api
+    description: API base path (relative to the application host)
+
+security: []
+
+tags:
+  - name: Auth
+    description: Registration, login, session/profile management
+  - name: Catalog
+    description: Categories, products, and product variants (public browsing + admin management)
+  - name: Cart
+    description: Authenticated customer shopping cart
+  - name: Wishlist
+    description: Authenticated customer wishlist
+  - name: Address
+    description: Customer address book
+  - name: Checkout
+    description: Cart-to-order checkout
+  - name: Orders
+    description: Customer order history and admin order status management
+  - name: Payments
+    description: Admin payment and refund management
+  - name: Returns
+    description: Customer return/exchange requests and admin status management
+  - name: Coupons
+    description: Admin coupon management and discount calculation
+  - name: Campaigns
+    description: Public active campaigns and admin campaign management
+  - name: CMS
+    description: Public content (homepage, banners, about, FAQ, policies) and admin media management
+  - name: Settings
+    description: Public/admin settings and admin preferences
+  - name: Admin
+    description: Admin dashboard reporting
+
+paths:
+  # ---------------------------------------------------------------------
+  # Auth
+  # ---------------------------------------------------------------------
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new customer account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, phone, password, password_confirmation]
+              properties:
+                name: { type: string, maxLength: 255 }
+                email: { type: string, format: email, nullable: true }
+                phone: { type: string, maxLength: 20 }
+                password: { type: string, format: password, minLength: 8 }
+                password_confirmation: { type: string, format: password }
+      responses:
+        '201':
+          description: Registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  user: { $ref: '#/components/schemas/User' }
+                  token: { type: string }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Log in with phone/email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [login, password]
+              properties:
+                login: { type: string, description: 'Phone number or email address' }
+                password: { type: string, format: password }
+      responses:
+        '200':
+          description: Logged in successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  user: { $ref: '#/components/schemas/User' }
+                  token: { type: string }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke the current access token
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Logged out successfully
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Get the authenticated user's profile
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+
+  /auth/profile:
+    put:
+      tags: [Auth]
+      summary: Update the authenticated user's profile
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, maxLength: 255 }
+                email: { type: string, format: email, nullable: true }
+                phone: { type: string, maxLength: 20 }
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  user: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /auth/password:
+    put:
+      tags: [Auth]
+      summary: Change the authenticated user's password
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current_password, password, password_confirmation]
+              properties:
+                current_password: { type: string, format: password }
+                password: { type: string, format: password, minLength: 8 }
+                password_confirmation: { type: string, format: password }
+      responses:
+        '200':
+          description: Password changed successfully
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  # ---------------------------------------------------------------------
+  # Catalog (public + admin)
+  # ---------------------------------------------------------------------
+  /catalog/categories:
+    get:
+      tags: [Catalog]
+      summary: List categories (public)
+      parameters:
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/Search'
+        - in: query
+          name: parent_id
+          schema: { type: integer }
+        - in: query
+          name: gender
+          schema: { type: string, enum: [men, women, unisex] }
+        - in: query
+          name: is_active
+          schema: { type: boolean }
+      responses:
+        '200': { $ref: '#/components/responses/CategoryList' }
+
+  /catalog/categories/{category}:
+    get:
+      tags: [Catalog]
+      summary: Get a category (public)
+      parameters:
+        - $ref: '#/components/parameters/CategoryId'
+      responses:
+        '200': { $ref: '#/components/responses/CategoryItem' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /catalog/products:
+    get:
+      tags: [Catalog]
+      summary: List products (public)
+      parameters:
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/Search'
+        - in: query
+          name: category_id
+          schema: { type: integer }
+        - in: query
+          name: brand_id
+          schema: { type: integer }
+        - in: query
+          name: gender
+          schema: { type: string, enum: [men, women, unisex] }
+        - in: query
+          name: min_price
+          schema: { type: number }
+        - in: query
+          name: max_price
+          schema: { type: number }
+      responses:
+        '200': { $ref: '#/components/responses/ProductList' }
+
+  /catalog/products/{product}:
+    get:
+      tags: [Catalog]
+      summary: Get a product (public)
+      parameters:
+        - $ref: '#/components/parameters/ProductId'
+      responses:
+        '200': { $ref: '#/components/responses/ProductItem' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /catalog/product-variants:
+    get:
+      tags: [Catalog]
+      summary: List product variants (public)
+      parameters:
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/Search'
+        - in: query
+          name: product_id
+          schema: { type: integer }
+        - in: query
+          name: in_stock
+          schema: { type: boolean }
+      responses:
+        '200': { $ref: '#/components/responses/ProductVariantList' }
+
+  /catalog/product-variants/{productVariant}:
+    get:
+      tags: [Catalog]
+      summary: Get a product variant (public)
+      parameters:
+        - $ref: '#/components/parameters/ProductVariantId'
+      responses:
+        '200': { $ref: '#/components/responses/ProductVariantItem' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /admin/categories:
+    get:
+      tags: [Catalog]
+      summary: 'Admin: list categories'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: products.view'
+      parameters: [{ $ref: '#/components/parameters/PerPage' }]
+      responses:
+        '200': { $ref: '#/components/responses/CategoryList' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Catalog]
+      summary: 'Admin: create category'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: products.create'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CategoryWrite' }
+      responses:
+        '201': { $ref: '#/components/responses/CategoryItem' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /admin/categories/{category}:
+    get:
+      tags: [Catalog]
+      summary: 'Admin: get category'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: products.view'
+      parameters: [{ $ref: '#/components/parameters/CategoryId' }]
+      responses:
+        '200': { $ref: '#/components/responses/CategoryItem' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Catalog]
+      summary: 'Admin: update category'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: products.update'
+      parameters: [{ $ref: '#/components/parameters/CategoryId' }]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CategoryWrite' }
+      responses:
+        '200': { $ref: '#/components/responses/CategoryItem' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Catalog]
+      summary: 'Admin: delete category'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: products.delete'
+      parameters: [{ $ref: '#/components/parameters/CategoryId' }]
+      responses:
+        '200': { $ref: '#/components/responses/MessageOnly' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /admin/products:
+    get:
+      tags: [Catalog]
+      summary: 'Admin: list products'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: products.view'
+      parameters: [{ $ref: '#/components/parameters/PerPage' }]
+      responses:
+        '200': { $ref: '#/components/responses/ProductList' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Catalog]
+      summary: 'Admin: create product'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: products.create'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductWrite' }
+      responses:
+        '201': { $ref: '#/components/responses/ProductItem' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /admin/products/{product}:
+    get:
+      tags: [Catalog]
+      summary: 'Admin: get product'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: products.view'
+      parameters: [{ $ref: '#/components/parameters/ProductId' }]
+      responses:
+        '200': { $ref: '#/components/responses/ProductItem' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Catalog]
+      summary: 'Admin: update product'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: products.update'
+      parameters: [{ $ref: '#/components/parameters/ProductId' }]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductWrite' }
+      responses:
+        '200': { $ref: '#/components/responses/ProductItem' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Catalog]
+      summary: 'Admin: delete product'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: products.delete'
+      parameters: [{ $ref: '#/components/parameters/ProductId' }]
+      responses:
+        '200': { $ref: '#/components/responses/MessageOnly' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /admin/product-variants:
+    get:
+      tags: [Catalog]
+      summary: 'Admin: list product variants'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: products.view'
+      parameters: [{ $ref: '#/components/parameters/PerPage' }]
+      responses:
+        '200': { $ref: '#/components/responses/ProductVariantList' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Catalog]
+      summary: 'Admin: create product variant'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: products.create'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductVariantWrite' }
+      responses:
+        '201': { $ref: '#/components/responses/ProductVariantItem' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /admin/product-variants/{productVariant}:
+    get:
+      tags: [Catalog]
+      summary: 'Admin: get product variant'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: products.view'
+      parameters: [{ $ref: '#/components/parameters/ProductVariantId' }]
+      responses:
+        '200': { $ref: '#/components/responses/ProductVariantItem' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Catalog]
+      summary: 'Admin: update product variant'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: products.update'
+      parameters: [{ $ref: '#/components/parameters/ProductVariantId' }]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductVariantWrite' }
+      responses:
+        '200': { $ref: '#/components/responses/ProductVariantItem' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Catalog]
+      summary: 'Admin: delete product variant'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: products.delete'
+      parameters: [{ $ref: '#/components/parameters/ProductVariantId' }]
+      responses:
+        '200': { $ref: '#/components/responses/MessageOnly' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # ---------------------------------------------------------------------
+  # Cart
+  # ---------------------------------------------------------------------
+  /cart:
+    get:
+      tags: [Cart]
+      summary: Get the current user's cart
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/CartItem' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+    delete:
+      tags: [Cart]
+      summary: Clear the current user's cart
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/MessageOnly' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+
+  /cart/items:
+    post:
+      tags: [Cart]
+      summary: Add an item to the cart
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [product_variant_id, quantity]
+              properties:
+                product_variant_id: { type: integer }
+                quantity: { type: integer, minimum: 1, maximum: 10 }
+      responses:
+        '200':
+          description: >
+            Cart item added or quantity merged into an existing line. `unit_price_snapshot`
+            is computed server-side from the variant's `price_override` (falling back to
+            the product's `base_price`) and cannot be supplied by the client.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CartLineItem' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /cart/items/{cartItem}:
+    put:
+      tags: [Cart]
+      summary: Update a cart item's quantity
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: cartItem
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [quantity]
+              properties:
+                quantity: { type: integer, minimum: 1, maximum: 10 }
+      responses:
+        '200': { $ref: '#/components/responses/CartItemLine' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Cart]
+      summary: Remove a cart item
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: cartItem
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { $ref: '#/components/responses/MessageOnly' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ---------------------------------------------------------------------
+  # Wishlist
+  # ---------------------------------------------------------------------
+  /wishlist:
+    get:
+      tags: [Wishlist]
+      summary: Get the current user's wishlist
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Wishlist
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Wishlist' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+
+  /wishlist/items:
+    post:
+      tags: [Wishlist]
+      summary: Add an item to the wishlist
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [product_id]
+              properties:
+                product_id: { type: integer }
+                product_variant_id: { type: integer, nullable: true }
+      responses:
+        '200':
+          description: Wishlist item added
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WishlistItem' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /wishlist/items/{wishlistItem}:
+    delete:
+      tags: [Wishlist]
+      summary: Remove a wishlist item
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: wishlistItem
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { $ref: '#/components/responses/MessageOnly' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ---------------------------------------------------------------------
+  # Address
+  # ---------------------------------------------------------------------
+  /addresses:
+    get:
+      tags: [Address]
+      summary: List the current user's addresses
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Address list
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Address' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+    post:
+      tags: [Address]
+      summary: Create an address
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AddressWrite' }
+      responses:
+        '201':
+          description: Address created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Address' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /addresses/{address}:
+    get:
+      tags: [Address]
+      summary: Get an address (owner only)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ in: path, name: address, required: true, schema: { type: integer } }]
+      responses:
+        '200':
+          description: Address
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Address' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Address]
+      summary: Update an address (owner only)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ in: path, name: address, required: true, schema: { type: integer } }]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AddressWrite' }
+      responses:
+        '200':
+          description: Address updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Address' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Address]
+      summary: Delete an address (owner only)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ in: path, name: address, required: true, schema: { type: integer } }]
+      responses:
+        '200': { $ref: '#/components/responses/MessageOnly' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /addresses/{address}/default:
+    put:
+      tags: [Address]
+      summary: Set an address as the default (owner only)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ in: path, name: address, required: true, schema: { type: integer } }]
+      responses:
+        '200':
+          description: Default address set
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Address' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ---------------------------------------------------------------------
+  # Checkout
+  # ---------------------------------------------------------------------
+  /checkout:
+    post:
+      tags: [Checkout]
+      summary: Checkout the current cart into an order
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [payment_method, address]
+              properties:
+                currency_id: { type: integer }
+                currency_code: { type: string, minLength: 3, maxLength: 3 }
+                shipping_fee: { type: number }
+                shipping_rate_id: { type: integer }
+                coupon_id: { type: integer }
+                coupon_code: { type: string, maxLength: 50 }
+                payment_method: { type: string, maxLength: 30, example: cod }
+                payment_provider: { type: string, maxLength: 30 }
+                payment_metadata: { type: object, nullable: true }
+                customer_notes: { type: string, nullable: true }
+                reservation_expires_at: { type: string, format: date-time }
+                address:
+                  type: object
+                  required: [full_name, phone, governorate_name, shipping_zone_code, city, street]
+                  properties:
+                    type: { type: string, enum: [shipping, billing] }
+                    full_name: { type: string, maxLength: 150 }
+                    phone: { type: string, maxLength: 20 }
+                    governorate_name: { type: string, maxLength: 100 }
+                    shipping_zone_code: { type: string, maxLength: 30 }
+                    city: { type: string, maxLength: 100 }
+                    area: { type: string, nullable: true, maxLength: 150 }
+                    street: { type: string, maxLength: 200 }
+                    building: { type: string, nullable: true, maxLength: 50 }
+                    floor: { type: string, nullable: true, maxLength: 20 }
+                    postal_code: { type: string, nullable: true, maxLength: 20 }
+      responses:
+        '201':
+          description: Order created from checkout
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Order' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422':
+          description: Validation error or business rule violation (empty cart, insufficient stock, inactive variant, invalid/expired coupon, etc.)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  # ---------------------------------------------------------------------
+  # Orders
+  # ---------------------------------------------------------------------
+  /orders:
+    get:
+      tags: [Orders]
+      summary: List the current user's orders
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/PerPage'
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: payment_status
+          schema: { type: string }
+      responses:
+        '200':
+          description: Order list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Order' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+
+  /orders/{order}:
+    get:
+      tags: [Orders]
+      summary: Get an order (owner only)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ in: path, name: order, required: true, schema: { type: integer } }]
+      responses:
+        '200':
+          description: Order
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Order' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /orders/{order}/cancel:
+    post:
+      tags: [Orders]
+      summary: Cancel an order (owner only)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ in: path, name: order, required: true, schema: { type: integer } }]
+      responses:
+        '200':
+          description: Order cancelled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  order: { $ref: '#/components/schemas/Order' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /admin/orders/{order}/status:
+    patch:
+      tags: [Orders]
+      summary: 'Admin: update order status'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: orders.update'
+      parameters: [{ in: path, name: order, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [pending_confirmation, confirmed, processing, shipped, delivered, cancelled, returned]
+                  description: Must be one of the allowed order status values; any other value returns 422.
+                payment_status: { type: string, maxLength: 30 }
+                admin_notes: { type: string, nullable: true }
+                whatsapp_sent_at: { type: string, format: date-time, nullable: true }
+                confirmed_at: { type: string, format: date-time, nullable: true }
+                cancelled_at: { type: string, format: date-time, nullable: true }
+      responses:
+        '200':
+          description: Order status updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Order' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422':
+          description: Validation failed (e.g. status is not one of the allowed enum values)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ValidationErrorBody' }
+
+  # ---------------------------------------------------------------------
+  # Payments (Admin)
+  # ---------------------------------------------------------------------
+  /admin/payments:
+    get:
+      tags: [Payments]
+      summary: 'Admin: list payments'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: payments.view'
+      parameters:
+        - $ref: '#/components/parameters/PerPage'
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: provider
+          schema: { type: string }
+      responses:
+        '200':
+          description: Payment list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Payment' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /admin/payments/{payment}:
+    get:
+      tags: [Payments]
+      summary: 'Admin: get payment'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: payments.view'
+      parameters: [{ in: path, name: payment, required: true, schema: { type: integer } }]
+      responses:
+        '200':
+          description: Payment
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Payment' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /admin/payments/{payment}/paid:
+    patch:
+      tags: [Payments]
+      summary: 'Admin: mark payment as paid'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: payments.view'
+      parameters: [{ in: path, name: payment, required: true, schema: { type: integer } }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                provider_reference: { type: string, nullable: true, maxLength: 255 }
+                paid_at: { type: string, format: date-time, nullable: true }
+      responses:
+        '200':
+          description: Payment marked as paid; order payment_status recalculated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Payment' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /admin/payments/{payment}/status:
+    patch:
+      tags: [Payments]
+      summary: 'Admin: update payment status'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: payments.view'
+      parameters: [{ in: path, name: payment, required: true, schema: { type: integer } }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status: { type: string, maxLength: 30 }
+                provider_reference: { type: string, nullable: true }
+                metadata: { type: object, nullable: true }
+                paid_at: { type: string, format: date-time, nullable: true }
+      responses:
+        '200':
+          description: Payment status updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Payment' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /admin/payments/{payment}/refunds:
+    post:
+      tags: [Payments]
+      summary: 'Admin: create a refund for a payment'
+      security: [{ bearerAuth: [] }]
+      description: >
+        Requires permission: payments.view. Refund amount must not exceed the
+        order's outstanding paid balance (paid minus already-processed refunds);
+        otherwise returns 422.
+      parameters: [{ in: path, name: payment, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [payment_id, order_id, amount]
+              properties:
+                payment_id: { type: integer }
+                order_id: { type: integer }
+                amount: { type: number, format: float }
+                reason: { type: string, nullable: true, maxLength: 500 }
+                status: { type: string, enum: [pending, processed, failed] }
+                processed_at: { type: string, format: date-time, nullable: true }
+      responses:
+        '201':
+          description: Refund created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Refund' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403':
+          description: 'Forbidden, or payment_id/order_id mismatch with the path payment'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422':
+          description: Validation error or refund amount exceeds available paid balance
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  # ---------------------------------------------------------------------
+  # Returns
+  # ---------------------------------------------------------------------
+  /returns:
+    get:
+      tags: [Returns]
+      summary: List the current user's return/exchange requests
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/PerPage'
+        - in: query
+          name: status
+          schema: { type: string, enum: [pending, approved, rejected, completed] }
+        - in: query
+          name: type
+          schema: { type: string, enum: [exchange, return] }
+      responses:
+        '200':
+          description: Return request list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/ReturnRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+    post:
+      tags: [Returns]
+      summary: Create a return/exchange request (owner of the order only)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [order_id, order_item_id, type, reason]
+              properties:
+                order_id: { type: integer }
+                order_item_id: { type: integer }
+                type: { type: string, enum: [exchange, return] }
+                reason: { type: string, maxLength: 500 }
+      responses:
+        '200':
+          description: >
+            Return request created. `status` cannot be set by the client and is always
+            initialized to `pending`; use the admin status endpoint to change it afterwards.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReturnRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /returns/{returnRequest}:
+    get:
+      tags: [Returns]
+      summary: Get a return request (owner only)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ in: path, name: returnRequest, required: true, schema: { type: integer } }]
+      responses:
+        '200':
+          description: Return request
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReturnRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /admin/returns/{returnRequest}/status:
+    patch:
+      tags: [Returns]
+      summary: 'Admin: update return request status'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: orders.update'
+      parameters: [{ in: path, name: returnRequest, required: true, schema: { type: integer } }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status: { type: string, enum: [pending, approved, rejected, completed] }
+                admin_notes: { type: string, nullable: true }
+                resolved_at: { type: string, format: date-time, nullable: true }
+      responses:
+        '200':
+          description: Return request status updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReturnRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  # ---------------------------------------------------------------------
+  # Coupons (Admin)
+  # ---------------------------------------------------------------------
+  /admin/coupons:
+    get:
+      tags: [Coupons]
+      summary: 'Admin: list coupons'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: coupons.manage'
+      parameters:
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/Search'
+        - in: query
+          name: type
+          schema: { type: string, enum: [percent, fixed] }
+        - in: query
+          name: is_active
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: Coupon list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Coupon' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Coupons]
+      summary: 'Admin: create coupon'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: coupons.manage'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CouponWrite' }
+      responses:
+        '201':
+          description: Coupon created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Coupon' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /admin/coupons/{coupon}:
+    get:
+      tags: [Coupons]
+      summary: 'Admin: get coupon'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: coupons.manage'
+      parameters: [{ in: path, name: coupon, required: true, schema: { type: integer } }]
+      responses:
+        '200':
+          description: Coupon
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Coupon' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Coupons]
+      summary: 'Admin: update coupon'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: coupons.manage'
+      parameters: [{ in: path, name: coupon, required: true, schema: { type: integer } }]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CouponWrite' }
+      responses:
+        '200':
+          description: Coupon updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Coupon' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Coupons]
+      summary: 'Admin: delete coupon'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: coupons.manage'
+      parameters: [{ in: path, name: coupon, required: true, schema: { type: integer } }]
+      responses:
+        '200': { $ref: '#/components/responses/MessageOnly' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /admin/coupons/{coupon}/calculate-discount:
+    post:
+      tags: [Coupons]
+      summary: 'Admin: calculate the discount a coupon would apply'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: coupons.manage'
+      parameters: [{ in: path, name: coupon, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [order_total]
+              properties:
+                order_total: { type: number, format: float, minimum: 0 }
+      responses:
+        '200':
+          description: Calculated discount
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  discount: { type: number, format: float }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422':
+          description: Coupon inactive/expired/usage limit reached/below minimum order total
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  # ---------------------------------------------------------------------
+  # Campaigns
+  # ---------------------------------------------------------------------
+  /campaigns/active:
+    get:
+      tags: [Campaigns]
+      summary: List currently active campaigns (public)
+      responses:
+        '200':
+          description: Active campaigns
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Campaign' }
+
+  /admin/campaigns:
+    get:
+      tags: [Campaigns]
+      summary: 'Admin: list campaigns'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: campaigns.manage'
+      parameters:
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/Search'
+        - in: query
+          name: type
+          schema: { type: string, enum: [flash_sale, seasonal, clearance] }
+        - in: query
+          name: is_active
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: Campaign list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Campaign' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Campaigns]
+      summary: 'Admin: create campaign'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: campaigns.manage'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CampaignWrite' }
+      responses:
+        '201':
+          description: Campaign created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Campaign' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /admin/campaigns/{campaign}:
+    get:
+      tags: [Campaigns]
+      summary: 'Admin: get campaign'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: campaigns.manage'
+      parameters: [{ in: path, name: campaign, required: true, schema: { type: integer } }]
+      responses:
+        '200':
+          description: Campaign
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Campaign' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Campaigns]
+      summary: 'Admin: update campaign'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: campaigns.manage'
+      parameters: [{ in: path, name: campaign, required: true, schema: { type: integer } }]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CampaignWrite' }
+      responses:
+        '200':
+          description: Campaign updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Campaign' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Campaigns]
+      summary: 'Admin: delete campaign'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: campaigns.manage'
+      parameters: [{ in: path, name: campaign, required: true, schema: { type: integer } }]
+      responses:
+        '200': { $ref: '#/components/responses/MessageOnly' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # ---------------------------------------------------------------------
+  # CMS
+  # ---------------------------------------------------------------------
+  /cms/homepage:
+    get:
+      tags: [CMS]
+      summary: Get homepage sections, trust strip items, and banners (public)
+      responses:
+        '200':
+          description: Homepage content
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sections: { type: array, items: { type: object } }
+                  trust_strip_items: { type: array, items: { type: object } }
+                  banners: { type: array, items: { type: object } }
+
+  /cms/banners:
+    get:
+      tags: [CMS]
+      summary: Get active banners by placement (public)
+      parameters:
+        - in: query
+          name: placement
+          schema: { type: string, default: hero }
+      responses:
+        '200':
+          description: Banners
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  banners: { type: array, items: { type: object } }
+
+  /cms/about:
+    get:
+      tags: [CMS]
+      summary: Get about page content, values, and stats (public)
+      responses:
+        '200':
+          description: About page data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content: { type: object }
+                  values: { type: array, items: { type: object } }
+                  stats: { type: array, items: { type: object } }
+
+  /cms/faq:
+    get:
+      tags: [CMS]
+      summary: Get FAQ items (public)
+      responses:
+        '200':
+          description: FAQ items
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { type: object } }
+
+  /cms/policies/{slug}:
+    get:
+      tags: [CMS]
+      summary: Get a policy page by slug (public)
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Policy page
+          content:
+            application/json:
+              schema: { type: object }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /admin/media:
+    get:
+      tags: [CMS]
+      summary: 'Admin: list media'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: cms.manage'
+      parameters:
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/Search'
+        - in: query
+          name: mime_type
+          schema: { type: string }
+      responses:
+        '200':
+          description: Media list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Media' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [CMS]
+      summary: 'Admin: create media metadata'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: cms.manage'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MediaWrite' }
+      responses:
+        '201':
+          description: Media created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Media' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /admin/media/{media}:
+    get:
+      tags: [CMS]
+      summary: 'Admin: get media'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: cms.manage'
+      parameters: [{ in: path, name: media, required: true, schema: { type: integer } }]
+      responses:
+        '200':
+          description: Media
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Media' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [CMS]
+      summary: 'Admin: update media metadata'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: cms.manage'
+      parameters: [{ in: path, name: media, required: true, schema: { type: integer } }]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MediaWrite' }
+      responses:
+        '200':
+          description: Media updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Media' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [CMS]
+      summary: 'Admin: delete (soft) media'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: cms.manage'
+      parameters: [{ in: path, name: media, required: true, schema: { type: integer } }]
+      responses:
+        '200': { $ref: '#/components/responses/MessageOnly' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # ---------------------------------------------------------------------
+  # Settings
+  # ---------------------------------------------------------------------
+  /settings/public:
+    get:
+      tags: [Settings]
+      summary: List public settings (public)
+      responses:
+        '200':
+          description: Public settings
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Setting' }
+
+  /admin/settings:
+    get:
+      tags: [Settings]
+      summary: 'Admin: list all settings'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: settings.manage'
+      parameters:
+        - $ref: '#/components/parameters/PerPage'
+        - in: query
+          name: group
+          schema: { type: string }
+        - in: query
+          name: is_public
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: Setting list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Setting' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /admin/settings/{setting}:
+    get:
+      tags: [Settings]
+      summary: 'Admin: get a setting'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: settings.manage'
+      parameters: [{ in: path, name: setting, required: true, schema: { type: integer } }]
+      responses:
+        '200':
+          description: Setting
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Setting' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Settings]
+      summary: 'Admin: update a setting'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: settings.manage'
+      parameters: [{ in: path, name: setting, required: true, schema: { type: integer } }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                value: { type: string, nullable: true }
+                type: { type: string, enum: [string, integer, decimal, boolean, json] }
+                group: { type: string, maxLength: 50 }
+                description: { type: string, nullable: true, maxLength: 255 }
+                is_public: { type: boolean }
+      responses:
+        '200':
+          description: Setting updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Setting' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /admin/admin-preferences:
+    post:
+      tags: [Settings]
+      summary: 'Admin: create/set an admin preference for self'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: settings.manage. user_id must match the authenticated admin.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, key]
+              properties:
+                user_id: { type: integer }
+                key: { type: string, maxLength: 100 }
+                value: { type: string, nullable: true }
+                type: { type: string, enum: [string, integer, decimal, boolean, json] }
+      responses:
+        '200':
+          description: Admin preference set
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminPreference' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /admin/admin-preferences/{key}:
+    put:
+      tags: [Settings]
+      summary: 'Admin: update an admin preference for self'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: settings.manage'
+      parameters: [{ in: path, name: key, required: true, schema: { type: string } }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                value: { type: string, nullable: true }
+                type: { type: string, enum: [string, integer, decimal, boolean, json] }
+      responses:
+        '200':
+          description: Admin preference updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminPreference' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  # ---------------------------------------------------------------------
+  # Admin
+  # ---------------------------------------------------------------------
+  /admin/dashboard:
+    get:
+      tags: [Admin]
+      summary: 'Admin: dashboard summary counters'
+      security: [{ bearerAuth: [] }]
+      description: 'Requires permission: reports.view'
+      responses:
+        '200':
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users_count: { type: integer }
+                  active_products_count: { type: integer }
+                  low_stock_variants_count: { type: integer }
+                  pending_orders_count: { type: integer }
+                  unpaid_orders_count: { type: integer }
+                  pending_returns_count: { type: integer }
+                  new_contact_messages_count: { type: integer }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: 'Sanctum personal access token'
+      description: >
+        Obtain a token from POST /auth/register or POST /auth/login (returned
+        in the `token` field) and send it as `Authorization: Bearer <token>`.
+
+  parameters:
+    PerPage:
+      in: query
+      name: per_page
+      schema: { type: integer, minimum: 1, maximum: 100, default: 15 }
+    Search:
+      in: query
+      name: search
+      schema: { type: string }
+    CategoryId:
+      in: path
+      name: category
+      required: true
+      schema: { type: integer }
+    ProductId:
+      in: path
+      name: product
+      required: true
+      schema: { type: integer }
+    ProductVariantId:
+      in: path
+      name: productVariant
+      required: true
+      schema: { type: integer }
+
+  responses:
+    MessageOnly:
+      description: Success message
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message: { type: string }
+    Unauthenticated:
+      description: Missing or invalid bearer token
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: Authenticated but lacking the required role/permission, or not the resource owner
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ValidationError:
+      description: Validation failed
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ValidationErrorBody' }
+    CategoryList:
+      description: Category list
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                type: array
+                items: { $ref: '#/components/schemas/Category' }
+    CategoryItem:
+      description: Category
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data: { $ref: '#/components/schemas/Category' }
+    ProductList:
+      description: Product list
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                type: array
+                items: { $ref: '#/components/schemas/Product' }
+    ProductItem:
+      description: Product
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data: { $ref: '#/components/schemas/Product' }
+    ProductVariantList:
+      description: Product variant list
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                type: array
+                items: { $ref: '#/components/schemas/ProductVariant' }
+    ProductVariantItem:
+      description: Product variant
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data: { $ref: '#/components/schemas/ProductVariant' }
+    CartItem:
+      description: Cart
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Cart' }
+    CartItemLine:
+      description: Cart item
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/CartLineItem' }
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        message: { type: string }
+        errors: { type: object, nullable: true }
+
+    ValidationErrorBody:
+      type: object
+      properties:
+        message: { type: string }
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+
+    User:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        email: { type: string, nullable: true }
+        phone: { type: string }
+        is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+
+    Category:
+      type: object
+      properties:
+        id: { type: integer }
+        parent_id: { type: integer, nullable: true }
+        name: { type: string }
+        slug: { type: string }
+        gender: { type: string, nullable: true, enum: [men, women, unisex] }
+        description: { type: string, nullable: true }
+        is_active: { type: boolean }
+        sort_order: { type: integer }
+
+    CategoryWrite:
+      type: object
+      required: [name, slug]
+      properties:
+        parent_id: { type: integer, nullable: true }
+        image_media_id: { type: integer, nullable: true }
+        name: { type: string, maxLength: 255 }
+        slug: { type: string, maxLength: 255 }
+        gender: { type: string, nullable: true, enum: [men, women, unisex] }
+        description: { type: string, nullable: true }
+        is_active: { type: boolean }
+        sort_order: { type: integer, minimum: 0 }
+
+    Product:
+      type: object
+      properties:
+        id: { type: integer }
+        category_id: { type: integer }
+        brand_id: { type: integer, nullable: true }
+        name: { type: string }
+        slug: { type: string }
+        base_price: { type: number, format: float }
+        compare_at_price: { type: number, format: float, nullable: true }
+        gender: { type: string, nullable: true }
+        badge: { type: string, nullable: true, enum: [new, hot] }
+        is_active: { type: boolean }
+
+    ProductWrite:
+      type: object
+      required: [category_id, name, slug, base_price]
+      properties:
+        brand_id: { type: integer, nullable: true }
+        category_id: { type: integer }
+        name: { type: string, maxLength: 255 }
+        slug: { type: string, maxLength: 255 }
+        short_description: { type: string, nullable: true, maxLength: 500 }
+        description: { type: string, nullable: true }
+        gender: { type: string, nullable: true, enum: [men, women, unisex] }
+        badge: { type: string, nullable: true, enum: [new, hot] }
+        base_price: { type: number, format: float, minimum: 0 }
+        compare_at_price: { type: number, format: float, nullable: true }
+        has_variants: { type: boolean }
+        is_active: { type: boolean }
+        is_new_arrival: { type: boolean }
+        is_best_seller: { type: boolean }
+        is_featured_drop: { type: boolean }
+        sort_order: { type: integer, minimum: 0 }
+
+    ProductVariant:
+      type: object
+      properties:
+        id: { type: integer }
+        product_id: { type: integer }
+        color_id: { type: integer }
+        size_id: { type: integer }
+        sku: { type: string }
+        barcode: { type: string, nullable: true }
+        price_override: { type: number, format: float, nullable: true }
+        stock: { type: integer }
+        is_active: { type: boolean }
+
+    ProductVariantWrite:
+      type: object
+      required: [product_id, color_id, size_id, sku]
+      properties:
+        product_id: { type: integer }
+        color_id: { type: integer }
+        size_id: { type: integer }
+        sku: { type: string, maxLength: 255 }
+        barcode: { type: string, nullable: true, maxLength: 255 }
+        price_override: { type: number, format: float, nullable: true }
+        stock: { type: integer, minimum: 0 }
+        is_active: { type: boolean }
+
+    Cart:
+      type: object
+      properties:
+        id: { type: integer }
+        user_id: { type: integer, nullable: true }
+        session_id: { type: string, nullable: true }
+        expires_at: { type: string, format: date-time, nullable: true }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/CartLineItem' }
+
+    CartLineItem:
+      type: object
+      properties:
+        id: { type: integer }
+        cart_id: { type: integer }
+        product_variant_id: { type: integer }
+        quantity: { type: integer }
+        unit_price_snapshot: { type: number, format: float }
+
+    Wishlist:
+      type: object
+      properties:
+        id: { type: integer }
+        user_id: { type: integer }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/WishlistItem' }
+
+    WishlistItem:
+      type: object
+      properties:
+        id: { type: integer }
+        wishlist_id: { type: integer }
+        product_id: { type: integer }
+        product_variant_id: { type: integer, nullable: true }
+
+    Address:
+      type: object
+      properties:
+        id: { type: integer }
+        user_id: { type: integer }
+        label: { type: string, nullable: true }
+        full_name: { type: string }
+        phone: { type: string }
+        governorate_id: { type: integer }
+        city: { type: string }
+        area: { type: string, nullable: true }
+        street: { type: string }
+        building: { type: string, nullable: true }
+        floor: { type: string, nullable: true }
+        postal_code: { type: string, nullable: true }
+        is_default: { type: boolean }
+
+    AddressWrite:
+      type: object
+      required: [user_id, full_name, phone, governorate_id, city, street]
+      properties:
+        user_id: { type: integer, description: 'Must match the authenticated user' }
+        label: { type: string, nullable: true, maxLength: 50 }
+        full_name: { type: string, maxLength: 150 }
+        phone: { type: string, maxLength: 20 }
+        governorate_id: { type: integer }
+        city: { type: string, maxLength: 100 }
+        area: { type: string, nullable: true, maxLength: 150 }
+        street: { type: string, maxLength: 200 }
+        building: { type: string, nullable: true, maxLength: 50 }
+        floor: { type: string, nullable: true, maxLength: 20 }
+        postal_code: { type: string, nullable: true, maxLength: 20 }
+        is_default: { type: boolean }
+
+    Order:
+      type: object
+      properties:
+        id: { type: integer }
+        order_number: { type: string }
+        user_id: { type: integer, nullable: true }
+        guest_email: { type: string, nullable: true }
+        guest_phone: { type: string, nullable: true }
+        currency_id: { type: integer }
+        currency_code: { type: string }
+        status: { type: string, enum: [pending_confirmation, confirmed, processing, shipped, delivered, cancelled, returned] }
+        payment_status: { type: string, example: unpaid }
+        payment_method: { type: string }
+        subtotal: { type: number, format: float }
+        shipping_fee: { type: number, format: float }
+        discount_total: { type: number, format: float }
+        grand_total: { type: number, format: float }
+        coupon_id: { type: integer, nullable: true }
+        customer_notes: { type: string, nullable: true }
+        admin_notes: { type: string, nullable: true }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/OrderItem' }
+        payments:
+          type: array
+          items: { $ref: '#/components/schemas/Payment' }
+        created_at: { type: string, format: date-time }
+
+    OrderItem:
+      type: object
+      properties:
+        id: { type: integer }
+        order_id: { type: integer }
+        product_variant_id: { type: integer, nullable: true }
+        product_name: { type: string }
+        sku: { type: string }
+        color_name: { type: string }
+        size_name: { type: string }
+        quantity: { type: integer }
+        unit_price: { type: number, format: float }
+        line_total: { type: number, format: float }
+
+    Payment:
+      type: object
+      properties:
+        id: { type: integer }
+        order_id: { type: integer }
+        provider: { type: string }
+        provider_reference: { type: string, nullable: true }
+        amount: { type: number, format: float }
+        currency: { type: string }
+        status: { type: string, example: pending }
+        metadata: { type: object, nullable: true }
+        paid_at: { type: string, format: date-time, nullable: true }
+        refunds:
+          type: array
+          items: { $ref: '#/components/schemas/Refund' }
+
+    Refund:
+      type: object
+      properties:
+        id: { type: integer }
+        payment_id: { type: integer }
+        order_id: { type: integer }
+        amount: { type: number, format: float }
+        reason: { type: string, nullable: true }
+        status: { type: string, enum: [pending, processed, failed] }
+        processed_at: { type: string, format: date-time, nullable: true }
+
+    ReturnRequest:
+      type: object
+      properties:
+        id: { type: integer }
+        order_id: { type: integer }
+        order_item_id: { type: integer }
+        type: { type: string, enum: [exchange, return] }
+        reason: { type: string }
+        status: { type: string, enum: [pending, approved, rejected, completed] }
+        admin_notes: { type: string, nullable: true }
+        requested_at: { type: string, format: date-time }
+        resolved_at: { type: string, format: date-time, nullable: true }
+
+    Coupon:
+      type: object
+      properties:
+        id: { type: integer }
+        code: { type: string }
+        type: { type: string, enum: [percent, fixed] }
+        value: { type: number, format: float }
+        min_order_total: { type: number, format: float, nullable: true }
+        max_discount: { type: number, format: float, nullable: true }
+        usage_limit: { type: integer, nullable: true }
+        used_count: { type: integer }
+        starts_at: { type: string, format: date-time, nullable: true }
+        expires_at: { type: string, format: date-time, nullable: true }
+        is_active: { type: boolean }
+
+    CouponWrite:
+      type: object
+      required: [code, type, value]
+      properties:
+        code: { type: string, maxLength: 50 }
+        type: { type: string, enum: [percent, fixed] }
+        value: { type: number, format: float, minimum: 0 }
+        min_order_total: { type: number, format: float, nullable: true }
+        max_discount: { type: number, format: float, nullable: true }
+        usage_limit: { type: integer, nullable: true }
+        starts_at: { type: string, format: date-time, nullable: true }
+        expires_at: { type: string, format: date-time, nullable: true }
+        is_active: { type: boolean }
+
+    Campaign:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        description: { type: string, nullable: true }
+        type: { type: string, enum: [flash_sale, seasonal, clearance] }
+        discount_type: { type: string, enum: [percent, fixed, none] }
+        discount_value: { type: number, format: float, nullable: true }
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: string, format: date-time }
+        is_active: { type: boolean }
+        banner_media_id: { type: integer, nullable: true }
+
+    CampaignWrite:
+      type: object
+      required: [name, slug, type, starts_at, ends_at]
+      properties:
+        name: { type: string, maxLength: 150 }
+        slug: { type: string, maxLength: 170 }
+        description: { type: string, nullable: true }
+        type: { type: string, enum: [flash_sale, seasonal, clearance] }
+        discount_type: { type: string, enum: [percent, fixed, none] }
+        discount_value: { type: number, format: float, nullable: true }
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: string, format: date-time }
+        is_active: { type: boolean }
+        banner_media_id: { type: integer, nullable: true }
+
+    Setting:
+      type: object
+      properties:
+        id: { type: integer }
+        key: { type: string }
+        value: { type: string, nullable: true }
+        type: { type: string, enum: [string, integer, decimal, boolean, json] }
+        group: { type: string }
+        description: { type: string, nullable: true }
+        is_public: { type: boolean }
+
+    AdminPreference:
+      type: object
+      properties:
+        id: { type: integer }
+        user_id: { type: integer }
+        key: { type: string }
+        value: { type: string, nullable: true }
+        type: { type: string, enum: [string, integer, decimal, boolean, json] }
+
+    Media:
+      type: object
+      properties:
+        id: { type: integer }
+        uuid: { type: string, nullable: true }
+        disk: { type: string }
+        directory: { type: string }
+        filename: { type: string }
+        path: { type: string }
+        mime_type: { type: string }
+        size_bytes: { type: integer }
+        width: { type: integer, nullable: true }
+        height: { type: integer, nullable: true }
+        alt_text: { type: string, nullable: true }
+        title: { type: string, nullable: true }
+        uploaded_by: { type: integer, nullable: true }
+
+    MediaWrite:
+      type: object
+      properties:
+        uuid: { type: string, maxLength: 36 }
+        disk: { type: string, maxLength: 50 }
+        directory: { type: string, maxLength: 255 }
+        filename: { type: string, maxLength: 255 }
+        path: { type: string, maxLength: 500 }
+        mime_type: { type: string, maxLength: 100 }
+        size_bytes: { type: integer, minimum: 0 }
+        width: { type: integer, nullable: true }
+        height: { type: integer, nullable: true }
+        alt_text: { type: string, nullable: true, maxLength: 255 }
+        title: { type: string, nullable: true, maxLength: 255 }

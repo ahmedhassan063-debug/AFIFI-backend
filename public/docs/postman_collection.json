@@ -1,0 +1,1378 @@
+{
+  "info": {
+    "_postman_id": "afifi-backend-api-collection",
+    "name": "AFIFI Backend API",
+    "description": "Postman collection for the AFIFI Backend REST API, generated from public/docs/openapi.yaml. Groups match the Swagger tags: Auth, Catalog, Cart, Wishlist, Address, Checkout, Orders, Payments, Returns, Coupons, Campaigns, CMS, Settings, Admin.\n\nAuthentication: obtain a token from Auth > Register or Auth > Login, then set the collection variable `token` to that value (or use the response's test script if you add one). Protected requests send `Authorization: Bearer {{token}}` automatically.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{token}}", "type": "string" }
+    ]
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://127.0.0.1:8000/api", "type": "string" },
+    { "key": "token", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"phone\": \"01012345678\",\n  \"password\": \"password123\",\n  \"password_confirmation\": \"password123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": [ "{{base_url}}" ],
+              "path": [ "auth", "register" ]
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login\": \"01012345678\",\n  \"password\": \"password123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [ "{{base_url}}" ],
+              "path": [ "auth", "login" ]
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/logout",
+              "host": [ "{{base_url}}" ],
+              "path": [ "auth", "logout" ]
+            }
+          }
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/me",
+              "host": [ "{{base_url}}" ],
+              "path": [ "auth", "me" ]
+            }
+          }
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PUT",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Name\",\n  \"email\": \"john@example.com\",\n  \"phone\": \"01012345678\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/profile",
+              "host": [ "{{base_url}}" ],
+              "path": [ "auth", "profile" ]
+            }
+          }
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "PUT",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"current_password\": \"password123\",\n  \"password\": \"newpassword123\",\n  \"password_confirmation\": \"newpassword123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/password",
+              "host": [ "{{base_url}}" ],
+              "path": [ "auth", "password" ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Catalog",
+      "item": [
+        {
+          "name": "List Categories (Public)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/catalog/categories?per_page=15&search=&parent_id=&gender=&is_active=",
+              "host": [ "{{base_url}}" ],
+              "path": [ "catalog", "categories" ],
+              "query": [
+                { "key": "per_page", "value": "15" },
+                { "key": "search", "value": "", "disabled": true },
+                { "key": "parent_id", "value": "", "disabled": true },
+                { "key": "gender", "value": "", "disabled": true },
+                { "key": "is_active", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Category (Public)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/catalog/categories/:category",
+              "host": [ "{{base_url}}" ],
+              "path": [ "catalog", "categories", ":category" ],
+              "variable": [ { "key": "category", "value": "1" } ]
+            }
+          }
+        },
+        {
+          "name": "List Products (Public)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/catalog/products?per_page=15&search=&category_id=&brand_id=&gender=&min_price=&max_price=",
+              "host": [ "{{base_url}}" ],
+              "path": [ "catalog", "products" ],
+              "query": [
+                { "key": "per_page", "value": "15" },
+                { "key": "search", "value": "", "disabled": true },
+                { "key": "category_id", "value": "", "disabled": true },
+                { "key": "brand_id", "value": "", "disabled": true },
+                { "key": "gender", "value": "", "disabled": true },
+                { "key": "min_price", "value": "", "disabled": true },
+                { "key": "max_price", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Product (Public)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/catalog/products/:product",
+              "host": [ "{{base_url}}" ],
+              "path": [ "catalog", "products", ":product" ],
+              "variable": [ { "key": "product", "value": "1" } ]
+            }
+          }
+        },
+        {
+          "name": "List Product Variants (Public)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/catalog/product-variants?per_page=15&search=&product_id=&in_stock=",
+              "host": [ "{{base_url}}" ],
+              "path": [ "catalog", "product-variants" ],
+              "query": [
+                { "key": "per_page", "value": "15" },
+                { "key": "search", "value": "", "disabled": true },
+                { "key": "product_id", "value": "", "disabled": true },
+                { "key": "in_stock", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Product Variant (Public)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/catalog/product-variants/:productVariant",
+              "host": [ "{{base_url}}" ],
+              "path": [ "catalog", "product-variants", ":productVariant" ],
+              "variable": [ { "key": "productVariant", "value": "1" } ]
+            }
+          }
+        },
+        {
+          "name": "Admin: List Categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/admin/categories?per_page=15",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "categories" ],
+              "query": [ { "key": "per_page", "value": "15" } ]
+            }
+          }
+        },
+        {
+          "name": "Admin: Create Category",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"parent_id\": null,\n  \"image_media_id\": null,\n  \"name\": \"New Category\",\n  \"slug\": \"new-category\",\n  \"gender\": \"unisex\",\n  \"description\": \"Category description\",\n  \"is_active\": true,\n  \"sort_order\": 0\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/categories",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "categories" ]
+            }
+          }
+        },
+        {
+          "name": "Admin: Get Category",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/admin/categories/:category",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "categories", ":category" ],
+              "variable": [ { "key": "category", "value": "1" } ]
+            }
+          }
+        },
+        {
+          "name": "Admin: Update Category",
+          "request": {
+            "method": "PUT",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Category\",\n  \"is_active\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/categories/:category",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "categories", ":category" ],
+              "variable": [ { "key": "category", "value": "1" } ]
+            }
+          }
+        },
+        {
+          "name": "Admin: Delete Category",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/admin/categories/:category",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "categories", ":category" ],
+              "variable": [ { "key": "category", "value": "1" } ]
+            }
+          }
+        },
+        {
+          "name": "Admin: List Products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/admin/products?per_page=15",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "products" ],
+              "query": [ { "key": "per_page", "value": "15" } ]
+            }
+          }
+        },
+        {
+          "name": "Admin: Create Product",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category_id\": 1,\n  \"brand_id\": null,\n  \"name\": \"New Product\",\n  \"slug\": \"new-product\",\n  \"short_description\": \"Short description\",\n  \"description\": \"Full description\",\n  \"gender\": \"unisex\",\n  \"badge\": null,\n  \"base_price\": 499.99,\n  \"compare_at_price\": null,\n  \"has_variants\": true,\n  \"is_active\": true,\n  \"is_new_arrival\": false,\n  \"is_best_seller\": false,\n  \"is_featured_drop\": false,\n  \"sort_order\": 0\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/products",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "products" ]
+            }
+          }
+        },
+        {
+          "name": "Admin: Get Product",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/admin/products/:product",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "products", ":product" ],
+              "variable": [ { "key": "product", "value": "1" } ]
+            }
+          }
+        },
+        {
+          "name": "Admin: Update Product",
+          "request": {
+            "method": "PUT",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Product\",\n  \"base_price\": 549.99,\n  \"is_active\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/products/:product",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "products", ":product" ],
+              "variable": [ { "key": "product", "value": "1" } ]
+            }
+          }
+        },
+        {
+          "name": "Admin: Delete Product",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/admin/products/:product",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "products", ":product" ],
+              "variable": [ { "key": "product", "value": "1" } ]
+            }
+          }
+        },
+        {
+          "name": "Admin: List Product Variants",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/admin/product-variants?per_page=15",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "product-variants" ],
+              "query": [ { "key": "per_page", "value": "15" } ]
+            }
+          }
+        },
+        {
+          "name": "Admin: Create Product Variant",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": 1,\n  \"color_id\": 1,\n  \"size_id\": 1,\n  \"sku\": \"SKU-0001\",\n  \"barcode\": null,\n  \"price_override\": null,\n  \"stock\": 100,\n  \"is_active\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/product-variants",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "product-variants" ]
+            }
+          }
+        },
+        {
+          "name": "Admin: Get Product Variant",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/admin/product-variants/:productVariant",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "product-variants", ":productVariant" ],
+              "variable": [ { "key": "productVariant", "value": "1" } ]
+            }
+          }
+        },
+        {
+          "name": "Admin: Update Product Variant",
+          "request": {
+            "method": "PUT",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stock\": 80,\n  \"is_active\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/product-variants/:productVariant",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "product-variants", ":productVariant" ],
+              "variable": [ { "key": "productVariant", "value": "1" } ]
+            }
+          }
+        },
+        {
+          "name": "Admin: Delete Product Variant",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/admin/product-variants/:productVariant",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "product-variants", ":productVariant" ],
+              "variable": [ { "key": "productVariant", "value": "1" } ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cart",
+      "item": [
+        {
+          "name": "Get Cart",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/cart",
+              "host": [ "{{base_url}}" ],
+              "path": [ "cart" ]
+            }
+          }
+        },
+        {
+          "name": "Clear Cart",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/cart",
+              "host": [ "{{base_url}}" ],
+              "path": [ "cart" ]
+            }
+          }
+        },
+        {
+          "name": "Add Cart Item",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_variant_id\": 1,\n  \"quantity\": 1\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/cart/items",
+              "host": [ "{{base_url}}" ],
+              "path": [ "cart", "items" ]
+            }
+          }
+        },
+        {
+          "name": "Update Cart Item",
+          "request": {
+            "method": "PUT",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 2\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/cart/items/:cartItem",
+              "host": [ "{{base_url}}" ],
+              "path": [ "cart", "items", ":cartItem" ],
+              "variable": [ { "key": "cartItem", "value": "1" } ]
+            }
+          }
+        },
+        {
+          "name": "Remove Cart Item",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/cart/items/:cartItem",
+              "host": [ "{{base_url}}" ],
+              "path": [ "cart", "items", ":cartItem" ],
+              "variable": [ { "key": "cartItem", "value": "1" } ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Wishlist",
+      "item": [
+        {
+          "name": "Get Wishlist",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/wishlist",
+              "host": [ "{{base_url}}" ],
+              "path": [ "wishlist" ]
+            }
+          }
+        },
+        {
+          "name": "Add Wishlist Item",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": 1,\n  \"product_variant_id\": null\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/wishlist/items",
+              "host": [ "{{base_url}}" ],
+              "path": [ "wishlist", "items" ]
+            }
+          }
+        },
+        {
+          "name": "Remove Wishlist Item",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/wishlist/items/:wishlistItem",
+              "host": [ "{{base_url}}" ],
+              "path": [ "wishlist", "items", ":wishlistItem" ],
+              "variable": [ { "key": "wishlistItem", "value": "1" } ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Address",
+      "item": [
+        {
+          "name": "List Addresses",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/addresses",
+              "host": [ "{{base_url}}" ],
+              "path": [ "addresses" ]
+            }
+          }
+        },
+        {
+          "name": "Create Address",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": 1,\n  \"label\": \"Home\",\n  \"full_name\": \"Jane Doe\",\n  \"phone\": \"01000000000\",\n  \"governorate_id\": 1,\n  \"city\": \"Cairo\",\n  \"area\": \"Nasr City\",\n  \"street\": \"123 Main St\",\n  \"building\": \"5\",\n  \"floor\": \"2\",\n  \"postal_code\": \"11511\",\n  \"is_default\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/addresses",
+              "host": [ "{{base_url}}" ],
+              "path": [ "addresses" ]
+            }
+          }
+        },
+        {
+          "name": "Get Address",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/addresses/:address",
+              "host": [ "{{base_url}}" ],
+              "path": [ "addresses", ":address" ],
+              "variable": [ { "key": "address", "value": "1" } ]
+            }
+          }
+        },
+        {
+          "name": "Update Address",
+          "request": {
+            "method": "PUT",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"Jane Doe Updated\",\n  \"city\": \"Giza\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/addresses/:address",
+              "host": [ "{{base_url}}" ],
+              "path": [ "addresses", ":address" ],
+              "variable": [ { "key": "address", "value": "1" } ]
+            }
+          }
+        },
+        {
+          "name": "Delete Address",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/addresses/:address",
+              "host": [ "{{base_url}}" ],
+              "path": [ "addresses", ":address" ],
+              "variable": [ { "key": "address", "value": "1" } ]
+            }
+          }
+        },
+        {
+          "name": "Set Default Address",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/addresses/:address/default",
+              "host": [ "{{base_url}}" ],
+              "path": [ "addresses", ":address", "default" ],
+              "variable": [ { "key": "address", "value": "1" } ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Checkout",
+      "item": [
+        {
+          "name": "Checkout Cart",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payment_method\": \"cod\",\n  \"coupon_code\": null,\n  \"customer_notes\": null,\n  \"address\": {\n    \"type\": \"shipping\",\n    \"full_name\": \"Jane Doe\",\n    \"phone\": \"01000000000\",\n    \"governorate_name\": \"Cairo\",\n    \"shipping_zone_code\": \"CAI\",\n    \"city\": \"Cairo\",\n    \"area\": \"Nasr City\",\n    \"street\": \"123 Main St\",\n    \"building\": \"5\",\n    \"floor\": \"2\",\n    \"postal_code\": \"11511\"\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/checkout",
+              "host": [ "{{base_url}}" ],
+              "path": [ "checkout" ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "List My Orders",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/orders?per_page=15&status=&payment_status=",
+              "host": [ "{{base_url}}" ],
+              "path": [ "orders" ],
+              "query": [
+                { "key": "per_page", "value": "15" },
+                { "key": "status", "value": "", "disabled": true },
+                { "key": "payment_status", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Order",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/orders/:order",
+              "host": [ "{{base_url}}" ],
+              "path": [ "orders", ":order" ],
+              "variable": [ { "key": "order", "value": "1" } ]
+            }
+          }
+        },
+        {
+          "name": "Cancel Order",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/orders/:order/cancel",
+              "host": [ "{{base_url}}" ],
+              "path": [ "orders", ":order", "cancel" ],
+              "variable": [ { "key": "order", "value": "1" } ]
+            }
+          }
+        },
+        {
+          "name": "Admin: Update Order Status",
+          "request": {
+            "method": "PATCH",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"confirmed\",\n  \"admin_notes\": \"Confirmed by admin\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/orders/:order/status",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "orders", ":order", "status" ],
+              "variable": [ { "key": "order", "value": "1" } ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "Admin: List Payments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/admin/payments?per_page=15&status=&provider=",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "payments" ],
+              "query": [
+                { "key": "per_page", "value": "15" },
+                { "key": "status", "value": "", "disabled": true },
+                { "key": "provider", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Admin: Get Payment",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/admin/payments/:payment",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "payments", ":payment" ],
+              "variable": [ { "key": "payment", "value": "1" } ]
+            }
+          }
+        },
+        {
+          "name": "Admin: Mark Payment as Paid",
+          "request": {
+            "method": "PATCH",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider_reference\": \"REF-12345\",\n  \"paid_at\": null\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/payments/:payment/paid",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "payments", ":payment", "paid" ],
+              "variable": [ { "key": "payment", "value": "1" } ]
+            }
+          }
+        },
+        {
+          "name": "Admin: Update Payment Status",
+          "request": {
+            "method": "PATCH",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"paid\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/payments/:payment/status",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "payments", ":payment", "status" ],
+              "variable": [ { "key": "payment", "value": "1" } ]
+            }
+          }
+        },
+        {
+          "name": "Admin: Create Refund",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payment_id\": 1,\n  \"order_id\": 1,\n  \"amount\": 40.00,\n  \"reason\": \"Damaged item\",\n  \"status\": \"processed\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/payments/:payment/refunds",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "payments", ":payment", "refunds" ],
+              "variable": [ { "key": "payment", "value": "1" } ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Returns",
+      "item": [
+        {
+          "name": "List My Return Requests",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/returns?per_page=15&status=&type=",
+              "host": [ "{{base_url}}" ],
+              "path": [ "returns" ],
+              "query": [
+                { "key": "per_page", "value": "15" },
+                { "key": "status", "value": "", "disabled": true },
+                { "key": "type", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Return Request",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": 1,\n  \"order_item_id\": 1,\n  \"type\": \"return\",\n  \"reason\": \"Wrong size\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/returns",
+              "host": [ "{{base_url}}" ],
+              "path": [ "returns" ]
+            }
+          }
+        },
+        {
+          "name": "Get Return Request",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/returns/:returnRequest",
+              "host": [ "{{base_url}}" ],
+              "path": [ "returns", ":returnRequest" ],
+              "variable": [ { "key": "returnRequest", "value": "1" } ]
+            }
+          }
+        },
+        {
+          "name": "Admin: Update Return Request Status",
+          "request": {
+            "method": "PATCH",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"approved\",\n  \"admin_notes\": \"Approved for exchange\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/returns/:returnRequest/status",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "returns", ":returnRequest", "status" ],
+              "variable": [ { "key": "returnRequest", "value": "1" } ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Coupons",
+      "item": [
+        {
+          "name": "Admin: List Coupons",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/admin/coupons?per_page=15&search=&type=&is_active=",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "coupons" ],
+              "query": [
+                { "key": "per_page", "value": "15" },
+                { "key": "search", "value": "", "disabled": true },
+                { "key": "type", "value": "", "disabled": true },
+                { "key": "is_active", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Admin: Create Coupon",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"SAVE10\",\n  \"type\": \"percent\",\n  \"value\": 10,\n  \"min_order_total\": 200,\n  \"max_discount\": 100,\n  \"usage_limit\": 500,\n  \"starts_at\": null,\n  \"expires_at\": null,\n  \"is_active\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/coupons",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "coupons" ]
+            }
+          }
+        },
+        {
+          "name": "Admin: Get Coupon",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/admin/coupons/:coupon",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "coupons", ":coupon" ],
+              "variable": [ { "key": "coupon", "value": "1" } ]
+            }
+          }
+        },
+        {
+          "name": "Admin: Update Coupon",
+          "request": {
+            "method": "PUT",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"value\": 15,\n  \"is_active\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/coupons/:coupon",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "coupons", ":coupon" ],
+              "variable": [ { "key": "coupon", "value": "1" } ]
+            }
+          }
+        },
+        {
+          "name": "Admin: Delete Coupon",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/admin/coupons/:coupon",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "coupons", ":coupon" ],
+              "variable": [ { "key": "coupon", "value": "1" } ]
+            }
+          }
+        },
+        {
+          "name": "Admin: Calculate Coupon Discount",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_total\": 500\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/coupons/:coupon/calculate-discount",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "coupons", ":coupon", "calculate-discount" ],
+              "variable": [ { "key": "coupon", "value": "1" } ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Campaigns",
+      "item": [
+        {
+          "name": "List Active Campaigns (Public)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/campaigns/active",
+              "host": [ "{{base_url}}" ],
+              "path": [ "campaigns", "active" ]
+            }
+          }
+        },
+        {
+          "name": "Admin: List Campaigns",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/admin/campaigns?per_page=15&search=&type=&is_active=",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "campaigns" ],
+              "query": [
+                { "key": "per_page", "value": "15" },
+                { "key": "search", "value": "", "disabled": true },
+                { "key": "type", "value": "", "disabled": true },
+                { "key": "is_active", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Admin: Create Campaign",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Summer Flash Sale\",\n  \"slug\": \"summer-flash-sale\",\n  \"description\": \"Limited time summer discounts\",\n  \"type\": \"flash_sale\",\n  \"discount_type\": \"percent\",\n  \"discount_value\": 20,\n  \"starts_at\": \"2026-07-10T00:00:00Z\",\n  \"ends_at\": \"2026-07-17T00:00:00Z\",\n  \"is_active\": true,\n  \"banner_media_id\": null\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/campaigns",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "campaigns" ]
+            }
+          }
+        },
+        {
+          "name": "Admin: Get Campaign",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/admin/campaigns/:campaign",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "campaigns", ":campaign" ],
+              "variable": [ { "key": "campaign", "value": "1" } ]
+            }
+          }
+        },
+        {
+          "name": "Admin: Update Campaign",
+          "request": {
+            "method": "PUT",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"discount_value\": 25,\n  \"is_active\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/campaigns/:campaign",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "campaigns", ":campaign" ],
+              "variable": [ { "key": "campaign", "value": "1" } ]
+            }
+          }
+        },
+        {
+          "name": "Admin: Delete Campaign",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/admin/campaigns/:campaign",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "campaigns", ":campaign" ],
+              "variable": [ { "key": "campaign", "value": "1" } ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "CMS",
+      "item": [
+        {
+          "name": "Homepage (Public)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/cms/homepage",
+              "host": [ "{{base_url}}" ],
+              "path": [ "cms", "homepage" ]
+            }
+          }
+        },
+        {
+          "name": "Banners (Public)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/cms/banners?placement=hero",
+              "host": [ "{{base_url}}" ],
+              "path": [ "cms", "banners" ],
+              "query": [ { "key": "placement", "value": "hero" } ]
+            }
+          }
+        },
+        {
+          "name": "About (Public)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/cms/about",
+              "host": [ "{{base_url}}" ],
+              "path": [ "cms", "about" ]
+            }
+          }
+        },
+        {
+          "name": "FAQ (Public)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/cms/faq",
+              "host": [ "{{base_url}}" ],
+              "path": [ "cms", "faq" ]
+            }
+          }
+        },
+        {
+          "name": "Policy Page (Public)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/cms/policies/:slug",
+              "host": [ "{{base_url}}" ],
+              "path": [ "cms", "policies", ":slug" ],
+              "variable": [ { "key": "slug", "value": "privacy-policy" } ]
+            }
+          }
+        },
+        {
+          "name": "Admin: List Media",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/admin/media?per_page=15&search=&mime_type=",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "media" ],
+              "query": [
+                { "key": "per_page", "value": "15" },
+                { "key": "search", "value": "", "disabled": true },
+                { "key": "mime_type", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Admin: Create Media",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"directory\": \"products\",\n  \"filename\": \"product-1.jpg\",\n  \"path\": \"products/product-1.jpg\",\n  \"mime_type\": \"image/jpeg\",\n  \"size_bytes\": 204800,\n  \"width\": 1200,\n  \"height\": 1200,\n  \"alt_text\": \"Product photo\",\n  \"title\": \"Product 1\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/media",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "media" ]
+            }
+          }
+        },
+        {
+          "name": "Admin: Get Media",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/admin/media/:media",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "media", ":media" ],
+              "variable": [ { "key": "media", "value": "1" } ]
+            }
+          }
+        },
+        {
+          "name": "Admin: Update Media",
+          "request": {
+            "method": "PUT",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"alt_text\": \"Updated alt text\",\n  \"title\": \"Updated title\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/media/:media",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "media", ":media" ],
+              "variable": [ { "key": "media", "value": "1" } ]
+            }
+          }
+        },
+        {
+          "name": "Admin: Delete Media",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/admin/media/:media",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "media", ":media" ],
+              "variable": [ { "key": "media", "value": "1" } ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Settings",
+      "item": [
+        {
+          "name": "Public Settings",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/settings/public",
+              "host": [ "{{base_url}}" ],
+              "path": [ "settings", "public" ]
+            }
+          }
+        },
+        {
+          "name": "Admin: List Settings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/admin/settings?per_page=15&group=&is_public=",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "settings" ],
+              "query": [
+                { "key": "per_page", "value": "15" },
+                { "key": "group", "value": "", "disabled": true },
+                { "key": "is_public", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Admin: Get Setting",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/admin/settings/:setting",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "settings", ":setting" ],
+              "variable": [ { "key": "setting", "value": "1" } ]
+            }
+          }
+        },
+        {
+          "name": "Admin: Update Setting",
+          "request": {
+            "method": "PUT",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"value\": \"new-value\",\n  \"is_public\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/settings/:setting",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "settings", ":setting" ],
+              "variable": [ { "key": "setting", "value": "1" } ]
+            }
+          }
+        },
+        {
+          "name": "Admin: Create Admin Preference",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": 1,\n  \"key\": \"theme\",\n  \"value\": \"dark\",\n  \"type\": \"string\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/admin-preferences",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "admin-preferences" ]
+            }
+          }
+        },
+        {
+          "name": "Admin: Update Admin Preference",
+          "request": {
+            "method": "PUT",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"value\": \"light\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/admin-preferences/:key",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "admin-preferences", ":key" ],
+              "variable": [ { "key": "key", "value": "theme" } ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Dashboard Summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/admin/dashboard",
+              "host": [ "{{base_url}}" ],
+              "path": [ "admin", "dashboard" ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
