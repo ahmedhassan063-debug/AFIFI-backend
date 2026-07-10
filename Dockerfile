@@ -33,6 +33,9 @@ RUN composer dump-autoload --optimize \
     && chmod -R 775 storage bootstrap/cache \
     && chmod +x /usr/local/bin/render-entrypoint.sh
 
+RUN a2dismod mpm_event || true \
+    && a2enmod mpm_prefork
+
 ENV PORT=10000
 
 EXPOSE 10000
