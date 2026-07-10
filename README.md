@@ -105,7 +105,7 @@ php artisan test tests/Unit
 
 Tests use an in-memory SQLite database (configured in `phpunit.xml`) with `RefreshDatabase`, so they never touch your development database.
 
-**Current test status:** 35 tests passing, 67 assertions.
+**Current test status:** 71 tests passing, 178 assertions.
 
 Test coverage includes: checkout flow (success/failure paths), authentication, authorization (roles/permissions/ownership), `PaymentService` (payment status reconciliation, refund guards), and `InventoryService` (stock reservation lifecycle).
 
@@ -151,19 +151,136 @@ To use it:
 
 - **Authentication**: Laravel Sanctum issues bearer tokens on register/login (`token` field in the response). Send `Authorization: Bearer <token>` on subsequent requests. Tokens are revoked on logout.
 - **Authorization**: [Spatie Laravel Permission](https://spatie.be/docs/laravel-permission) provides role/permission-based access control on admin routes via the `permission:*` middleware.
-  - **Permissions**: `users.*`, `products.*`, `inventory.*`, `orders.*`, `payments.view`, `coupons.manage`, `campaigns.manage`, `cms.manage`, `settings.manage`, `reports.view`, `roles.view`, `roles.manage`, `contact.view`, `contact.manage`.
+  - **Permissions**: `users.*`, `products.*`, `inventory.*`, `orders.*`, `payments.view`, `payments.update`, `payments.refund`, `coupons.manage`, `campaigns.manage`, `cms.manage`, `settings.manage`, `reports.view`, `roles.view`, `roles.manage`, `contact.view`, `contact.manage`.
   - **Roles**: `super_admin` (all permissions), `catalog_manager`, `fulfillment`, `support`, `marketing` — each scoped to a relevant permission subset (see `database/seeders/RolesAndPermissionsSeeder.php`).
 - **Policies**: Customer-owned resources (addresses, carts, wishlists) are additionally protected by ownership checks via Eloquent Policies, independent of the permission system.
 - **Error responses**: Unauthenticated requests return `401`; unauthorized/forbidden requests return `403`; validation and business-rule errors return `422`.
 
-## 10. Production Notes
+## 10. Production Deployment
 
-- Set `APP_ENV=production` and `APP_DEBUG=false`.
-- Use a production-grade database (MySQL/PostgreSQL) — SQLite is for local/testing only.
-- Run `php artisan config:cache`, `route:cache`, and `view:cache` after deployment.
-- Run `php artisan migrate --force` for production migrations (no interactive prompt).
-- Ensure a real queue worker (`php artisan queue:work`) is running if using queued jobs; `QUEUE_CONNECTION` should not be `sync` in production.
-- Configure a persistent `FILESYSTEM_DISK` (e.g. S3) for media uploads rather than `local`.
-- Review and rotate `APP_KEY` and Sanctum token expiration (`config/sanctum.php`) according to your security requirements.
-- Stock reservation holds use row-level locking (`lockForUpdate`) to prevent overselling under concurrent checkouts — ensure your database driver supports transactions (MySQL InnoDB/PostgreSQL).
-- Monitor the `stock_reservations` table for expired-but-unreleased holds; consider a scheduled job to release expired reservations if one is not already in place.
+Full cross-stack checklist (storefront, admin, CORS, rollback): see the storefront repo [`HANDOFF.md`](../../Afifi%20clothing%20brand/HANDOFF.md) §9.
+
+### Requirements
+
+- PHP 8.3+, Composer 2.x
+- MySQL 8+ or PostgreSQL 14+ (SQLite is for local dev and PHPUnit only)
+- nginx/Apache + PHP-FPM, HTTPS
+- Persistent disk or S3 for `storage/app/public`
+
+### Production `.env` (minimum)
+
+```env
+APP_NAME=AFIFI
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://api.yourdomain.com
+
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=afifi_production
+DB_USERNAME=afifi
+DB_PASSWORD=<strong-password>
+
+SESSION_DRIVER=database
+CACHE_STORE=database
+QUEUE_CONNECTION=database
+FILESYSTEM_DISK=local
+
+ADMIN_EMAIL=admin@yourdomain.com
+ADMIN_PASSWORD=<strong-password>
+ADMIN_NAME="AFIFI Admin"
+ADMIN_PHONE=01000000000
+
+# Optional: split-host CORS / future SPA cookie auth
+SANCTUM_STATEFUL_DOMAINS=shop.yourdomain.com,www.yourdomain.com
+# MEDIA_MAX_SIZE_BYTES=10485760
+```
+
+Never commit `.env`. Set `ADMIN_PASSWORD` before seeding.
+
+### Deploy commands (run in order)
+
+```bash
+# 1. Dependencies
+composer install --no-dev --optimize-autoloader
+
+# 2. App key (first deploy only)
+php artisan key:generate
+
+# 3. Database
+php artisan migrate --force
+php artisan db:seed --force                              # first deploy
+# php artisan db:seed --class=RolesAndPermissionsSeeder --force   # permission updates
+php artisan permission:cache-reset
+
+# 4. Storage
+php artisan storage:link
+
+# 5. Optimize (after every deploy)
+php artisan config:clear
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+
+# 6. Queue worker (if QUEUE_CONNECTION is not sync)
+php artisan queue:work --sleep=3 --tries=3
+```
+
+### CORS & Sanctum (split frontend/API)
+
+The static storefront and admin send **Bearer tokens** (`Authorization: Bearer <token>`), not cookies. For cross-origin hosting:
+
+1. Publish CORS config: `php artisan config:publish cors`
+2. Set `allowed_origins` in `config/cors.php` to your storefront/admin HTTPS origins.
+3. Re-run `php artisan config:clear && php artisan config:cache`.
+
+Default Laravel CORS allows `*` — restrict in production when possible. `SANCTUM_STATEFUL_DOMAINS` is only needed for cookie-based SPA mode.
+
+### Media & storage
+
+```bash
+php artisan storage:link
+```
+
+- Public URLs: `{APP_URL}/storage/{path}`
+- Media admin API is metadata-only; files live under `storage/app/public/` or S3.
+- MIME/size rules: `config/media.php` (publish `MEDIA_MAX_SIZE_BYTES` via `.env` if needed).
+- Run `php artisan config:clear` before `config:cache` when `config/media.php` or other config files change.
+
+### Rate limits (production)
+
+| Limiter | Scope | Limit |
+|---------|-------|-------|
+| `auth-public` | `POST /api/auth/register`, `POST /api/auth/login` | 10 requests/min per IP |
+| `auth-sensitive` | `PUT /api/auth/password` | 5 requests/min per user/IP |
+
+Defined in `app/Providers/AppServiceProvider.php`.
+
+### Queues
+
+`.env.example` sets `QUEUE_CONNECTION=database`. No application jobs are queued today, but the default is ready for future mail/async work. If you switch to `redis` or `database`, run a supervised `queue:work` process.
+
+### Post-deploy smoke tests
+
+```bash
+curl -f https://api.yourdomain.com/up
+curl -s https://api.yourdomain.com/api/settings/public
+curl -s https://api.yourdomain.com/api/catalog/products
+php artisan test   # run on CI before deploy; 71 tests
+```
+
+### Rollback
+
+1. Redeploy previous release artifact.
+2. `php artisan config:clear && php artisan route:clear && php artisan view:clear && php artisan permission:cache-reset`
+3. Restore DB backup if migrations ran (preferred over `migrate:rollback` on production).
+4. Reload PHP-FPM; restart queue workers.
+5. Re-run smoke tests.
+
+### Security reminders
+
+- `APP_DEBUG=false`, strong `APP_KEY`, strong `ADMIN_PASSWORD`
+- HTTPS only; restrict CORS origins
+- Re-seed permissions after adding new permission strings in code
+- Health endpoint: `GET /up`
