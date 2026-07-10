@@ -10,6 +10,8 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class MediaController extends Controller
 {
@@ -45,36 +47,48 @@ class MediaController extends Controller
     {
         $this->authorize('create', Media::class);
 
-        $media = $this->mediaService->createMetadata(array_merge($this->validatedMedia($request), [
-            'uploaded_by' => auth()->user()?->id,
-        ]));
+        try {
+            $media = $this->mediaService->createMetadata(array_merge($this->validatedMedia($request), [
+                'uploaded_by' => auth()->user()?->id,
+            ]));
+        } catch (\RuntimeException $exception) {
+            throw ValidationException::withMessages([
+                'media' => [$exception->getMessage()],
+            ]);
+        }
 
         return (new MediaResource($media->load('uploadedBy')))
             ->response()
             ->setStatusCode(201);
     }
 
-    public function show(Media $media): MediaResource
+    public function show(Media $medium): MediaResource
     {
-        $this->authorize('view', $media);
+        $this->authorize('view', $medium);
 
-        return new MediaResource($media->load('uploadedBy'));
+        return new MediaResource($medium->load('uploadedBy'));
     }
 
-    public function update(Request $request, Media $media): MediaResource
+    public function update(Request $request, Media $medium): MediaResource
     {
-        $this->authorize('update', $media);
+        $this->authorize('update', $medium);
 
-        $media = $this->mediaService->updateMetadata($media, $this->validatedMedia($request, false));
+        try {
+            $medium = $this->mediaService->updateMetadata($medium, $this->validatedMedia($request, false));
+        } catch (\RuntimeException $exception) {
+            throw ValidationException::withMessages([
+                'media' => [$exception->getMessage()],
+            ]);
+        }
 
-        return new MediaResource($media->load('uploadedBy'));
+        return new MediaResource($medium->load('uploadedBy'));
     }
 
-    public function destroy(Media $media): JsonResponse
+    public function destroy(Media $medium): JsonResponse
     {
-        $this->authorize('delete', $media);
+        $this->authorize('delete', $medium);
 
-        $this->mediaService->softDelete($media);
+        $this->mediaService->softDelete($medium);
 
         return response()->json([
             'message' => 'Media deleted successfully.',
@@ -85,17 +99,16 @@ class MediaController extends Controller
     {
         return $request->validate([
             'uuid' => ['sometimes', 'string', 'max:36'],
-            'disk' => ['sometimes', 'string', 'max:50'],
+            'disk' => ['sometimes', 'string', Rule::in(config('media.allowed_disks', ['public', 'local']))],
             'directory' => [$creating ? 'required' : 'sometimes', 'string', 'max:255'],
             'filename' => [$creating ? 'required' : 'sometimes', 'string', 'max:255'],
             'path' => ['sometimes', 'string', 'max:500'],
-            'mime_type' => [$creating ? 'required' : 'sometimes', 'string', 'max:100'],
-            'size_bytes' => [$creating ? 'required' : 'sometimes', 'integer', 'min:0'],
-            'width' => ['sometimes', 'nullable', 'integer', 'min:0'],
-            'height' => ['sometimes', 'nullable', 'integer', 'min:0'],
+            'mime_type' => [$creating ? 'required' : 'sometimes', 'string', Rule::in(config('media.allowed_mime_types', []))],
+            'size_bytes' => [$creating ? 'required' : 'sometimes', 'integer', 'min:1', 'max:'.config('media.max_size_bytes', 10 * 1024 * 1024)],
+            'width' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:20000'],
+            'height' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:20000'],
             'alt_text' => ['sometimes', 'nullable', 'string', 'max:255'],
             'title' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'uploaded_by' => ['sometimes', 'nullable', 'integer', 'exists:users,id'],
         ]);
     }
 

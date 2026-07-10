@@ -57,8 +57,16 @@ class CmsController extends Controller
         ]);
     }
 
-    public function policy(string $slug): PolicyPageResource
+    public function policy(string $slug): PolicyPageResource|JsonResponse
     {
-        return new PolicyPageResource($this->cmsService->getPolicyPageBySlug($slug));
+        $policy = $this->cmsService->getPolicyPageBySlug($slug);
+
+        if ($policy === null) {
+            return response()->json([
+                'message' => 'Policy page not found.',
+            ], 404);
+        }
+
+        return new PolicyPageResource($policy);
     }
 }

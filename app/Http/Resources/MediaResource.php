@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Services\MediaService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -16,6 +17,7 @@ class MediaResource extends JsonResource
             'directory' => $this->directory,
             'filename' => $this->filename,
             'path' => $this->path,
+            'url' => app(MediaService::class)->resolvePublicUrl($this->resource),
             'mime_type' => $this->mime_type,
             'size_bytes' => $this->size_bytes,
             'width' => $this->width,

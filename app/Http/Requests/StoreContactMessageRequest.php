@@ -3,7 +3,6 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class StoreContactMessageRequest extends FormRequest
 {
@@ -18,9 +17,7 @@ class StoreContactMessageRequest extends FormRequest
             'name' => ['required', 'string', 'max:150'],
             'email' => ['required', 'email', 'max:255'],
             'subject' => ['nullable', 'string', 'max:200'],
-            'message' => ['required', 'string'],
-            'status' => ['sometimes', Rule::in(['new', 'read', 'replied'])],
-            'user_id' => ['nullable', 'integer', 'exists:users,id'],
+            'message' => ['required', 'string', 'max:5000'],
         ];
     }
 }
