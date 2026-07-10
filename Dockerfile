@@ -33,5 +33,5 @@ ENV PORT=10000
 
 EXPOSE 10000
 
-ENTRYPOINT ["render-entrypoint.sh"]
+ENTRYPOINT ["/bin/bash", "/usr/local/bin/render-entrypoint.sh"]
 CMD ["apache2-foreground"]
