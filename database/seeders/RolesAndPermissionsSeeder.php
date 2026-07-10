@@ -32,6 +32,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'orders.view',
             'orders.update',
             'payments.view',
+            'payments.update',
+            'payments.refund',
             'coupons.manage',
             'campaigns.manage',
             'cms.manage',

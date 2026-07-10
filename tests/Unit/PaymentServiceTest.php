@@ -128,4 +128,38 @@ class PaymentServiceTest extends TestCase
         $this->assertDatabaseMissing('refunds', ['payment_id' => $payment->id]);
         $this->assertSame('paid', $order->fresh()->payment_status);
     }
+
+    public function test_create_refund_blocks_pending_refunds_from_over_committing_balance(): void
+    {
+        $order = $this->makeOrder(100);
+        $payment = Payment::factory()->for($order)->create(['status' => 'paid', 'amount' => 100]);
+
+        $this->service->createRefund($payment, [
+            'amount' => 60,
+            'reason' => 'First refund',
+            'status' => 'pending',
+        ]);
+
+        try {
+            $this->service->createRefund($payment, ['amount' => 50]);
+            $this->fail('Expected RuntimeException was not thrown.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('Refund amount exceeds available paid balance.', $exception->getMessage());
+        }
+
+        $this->assertSame(1, Refund::query()->where('payment_id', $payment->id)->count());
+    }
+
+    public function test_create_refund_requires_paid_payment(): void
+    {
+        $order = $this->makeOrder(100);
+        $payment = Payment::factory()->for($order)->create(['status' => 'pending', 'amount' => 100]);
+
+        try {
+            $this->service->createRefund($payment, ['amount' => 10]);
+            $this->fail('Expected RuntimeException was not thrown.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('Refunds are only allowed for paid payments.', $exception->getMessage());
+        }
+    }
 }

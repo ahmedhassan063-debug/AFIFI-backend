@@ -16,7 +16,7 @@ class StoreRefundRequest extends FormRequest
         return [
             'payment_id' => ['required', 'integer', 'exists:payments,id'],
             'order_id' => ['required', 'integer', 'exists:orders,id'],
-            'amount' => ['required', 'numeric', 'min:0', 'decimal:0,2'],
+            'amount' => ['required', 'numeric', 'min:0.01', 'decimal:0,2'],
             'reason' => ['nullable', 'string', 'max:500'],
         ];
     }

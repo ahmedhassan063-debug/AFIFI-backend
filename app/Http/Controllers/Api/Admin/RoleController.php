@@ -32,7 +32,7 @@ class RoleController extends Controller
         $this->authorize('view', $role);
 
         return new RoleResource(
-            $role->loadCount(['permissions', 'users'])->load(['permissions', 'users:id,name,email'])
+            $role->loadCount(['permissions', 'users'])->load(['permissions'])
         );
     }
 
@@ -54,7 +54,7 @@ class RoleController extends Controller
         $role->syncPermissions($request->validated('permissions'));
 
         return new RoleResource(
-            $role->loadCount(['permissions', 'users'])->load(['permissions', 'users:id,name,email'])
+            $role->loadCount(['permissions', 'users'])->load(['permissions'])
         );
     }
 }

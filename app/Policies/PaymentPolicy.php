@@ -19,12 +19,12 @@ class PaymentPolicy
 
     public function create(User $user): bool
     {
-        return $user->can('payments.view');
+        return $user->can('payments.update');
     }
 
     public function update(User $user, Payment $payment): bool
     {
-        return $user->can('payments.view');
+        return $user->can('payments.update');
     }
 
     public function delete(User $user, Payment $payment): bool
@@ -34,12 +34,12 @@ class PaymentPolicy
 
     public function markAsPaid(User $user, Payment $payment): bool
     {
-        return $user->can('payments.view');
+        return $user->can('payments.update');
     }
 
     public function refund(User $user, Payment $payment): bool
     {
-        return $user->can('payments.view');
+        return $user->can('payments.refund');
     }
 
     private function owns(User $user, Payment $payment): bool

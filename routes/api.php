@@ -29,7 +29,7 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 
-Route::prefix('auth')->name('auth.')->group(function (): void {
+Route::prefix('auth')->middleware('throttle:auth-public')->name('auth.')->group(function (): void {
     Route::post('register', [AuthController::class, 'register'])->name('register');
     Route::post('login', [AuthController::class, 'login'])->name('login');
 });
@@ -67,7 +67,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::post('logout', [AuthController::class, 'logout'])->name('logout');
         Route::get('me', [AuthController::class, 'me'])->name('me');
         Route::put('profile', [AuthController::class, 'updateProfile'])->name('profile.update');
-        Route::put('password', [AuthController::class, 'changePassword'])->name('password.update');
+        Route::put('password', [AuthController::class, 'changePassword'])
+            ->middleware('throttle:auth-sensitive')
+            ->name('password.update');
     });
 
     Route::prefix('cart')->name('cart.')->group(function (): void {
@@ -217,9 +219,12 @@ Route::middleware(['auth:sanctum'])->prefix('admin')->name('admin.')->group(func
         Route::delete('contact-messages/{contactMessage}', [ContactMessageController::class, 'destroy'])->name('contact-messages.destroy');
     });
 
-    Route::middleware('permission:payments.view')->group(function (): void {
+    Route::middleware('permission:payments.update')->group(function (): void {
         Route::patch('payments/{payment}/paid', [PaymentController::class, 'markAsPaid'])->name('payments.paid');
         Route::patch('payments/{payment}/status', [PaymentController::class, 'updateStatus'])->name('payments.status.update');
+    });
+
+    Route::middleware('permission:payments.refund')->group(function (): void {
         Route::post('payments/{payment}/refunds', [PaymentController::class, 'refund'])->name('payments.refunds.store');
     });
 });

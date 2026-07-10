@@ -21,6 +21,9 @@ class AuthTest extends TestCase
 
         $response->assertCreated();
         $response->assertJsonStructure(['message', 'user', 'token']);
+        $response->assertJsonStructure(['user' => ['id', 'name', 'email', 'phone', 'created_at']]);
+        $response->assertJsonMissingPath('user.password');
+        $response->assertJsonMissingPath('user.is_active');
         $this->assertDatabaseHas('users', [
             'phone' => '01012345678',
             'email' => 'john@example.com',
@@ -38,6 +41,8 @@ class AuthTest extends TestCase
 
         $response->assertOk();
         $response->assertJsonStructure(['message', 'user', 'token']);
+        $response->assertJsonMissingPath('user.password');
+        $response->assertJsonMissingPath('user.is_active');
     }
 
     public function test_me_returns_authenticated_user(): void
@@ -49,6 +54,9 @@ class AuthTest extends TestCase
 
         $response->assertOk();
         $response->assertJsonPath('user.id', $user->id);
+        $response->assertJsonMissingPath('user.password');
+        $response->assertJsonMissingPath('user.is_active');
+        $response->assertJsonMissingPath('user.roles');
     }
 
     public function test_logout_revokes_token(): void

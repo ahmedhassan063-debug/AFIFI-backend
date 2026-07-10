@@ -70,10 +70,18 @@ class PaymentService
     {
         return DB::transaction(function () use ($payment, $data) {
             $payment = $this->resolvePayment($payment);
-            $order = $payment->order;
+            $payment = Payment::query()->whereKey($payment->id)->lockForUpdate()->firstOrFail();
+
+            if ($payment->status !== 'paid') {
+                throw new RuntimeException('Refunds are only allowed for paid payments.');
+            }
+
+            $order = Order::query()->whereKey($payment->order_id)->lockForUpdate()->firstOrFail();
             $paidAmount = (float) $order->payments()->where('status', 'paid')->sum('amount');
-            $refundedAmount = (float) $order->refunds()->where('status', 'processed')->sum('amount');
-            $availableToRefund = max(0, $paidAmount - $refundedAmount);
+            $reservedRefundAmount = (float) $order->refunds()
+                ->whereIn('status', ['processed', 'pending'])
+                ->sum('amount');
+            $availableToRefund = max(0, $paidAmount - $reservedRefundAmount);
 
             if ((float) $data['amount'] > $availableToRefund) {
                 throw new RuntimeException('Refund amount exceeds available paid balance.');

@@ -83,4 +83,37 @@ class AuthorizationTest extends TestCase
 
         $response->assertStatus(403);
     }
+
+    public function test_roles_manage_admin_cannot_grant_permissions_they_do_not_hold(): void
+    {
+        $admin = User::factory()->create();
+        $admin->givePermissionTo(['roles.view', 'roles.manage']);
+        Sanctum::actingAs($admin);
+
+        $role = \Spatie\Permission\Models\Role::query()->where('name', 'support')->firstOrFail();
+
+        $response = $this->putJson("/api/admin/roles/{$role->id}/permissions", [
+            'permissions' => ['settings.manage'],
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['permissions']);
+        $this->assertFalse($role->fresh()->hasPermissionTo('settings.manage'));
+    }
+
+    public function test_super_admin_can_grant_any_permission_to_other_roles(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole('super_admin');
+        Sanctum::actingAs($admin);
+
+        $role = \Spatie\Permission\Models\Role::query()->where('name', 'support')->firstOrFail();
+
+        $response = $this->putJson("/api/admin/roles/{$role->id}/permissions", [
+            'permissions' => ['users.view', 'settings.manage'],
+        ]);
+
+        $response->assertOk();
+        $this->assertTrue($role->fresh()->hasPermissionTo('settings.manage'));
+    }
 }

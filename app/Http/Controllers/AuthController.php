@@ -6,6 +6,7 @@ use App\Http\Requests\ChangePasswordRequest;
 use App\Http\Requests\LoginRequest;
 use App\Http\Requests\RegisterRequest;
 use App\Http\Requests\UpdateProfileRequest;
+use App\Http\Resources\AuthUserResource;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
@@ -27,7 +28,7 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Registered successfully.',
-            'user' => $user,
+            'user' => new AuthUserResource($user),
             'token' => $user->createToken('api')->plainTextToken,
         ], 201);
     }
@@ -59,7 +60,7 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Logged in successfully.',
-            'user' => $user->refresh(),
+            'user' => new AuthUserResource($user->refresh()),
             'token' => $user->createToken('api')->plainTextToken,
         ]);
     }
@@ -80,7 +81,7 @@ class AuthController extends Controller
     public function me(): JsonResponse
     {
         return response()->json([
-            'user' => auth()->user(),
+            'user' => new AuthUserResource(auth()->user()),
         ]);
     }
 
@@ -94,7 +95,7 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Profile updated successfully.',
-            'user' => $user->refresh(),
+            'user' => new AuthUserResource($user->refresh()),
         ]);
     }
 
