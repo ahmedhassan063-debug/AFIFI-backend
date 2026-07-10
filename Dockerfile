@@ -36,7 +36,6 @@ RUN composer dump-autoload --optimize \
 RUN a2dismod mpm_event || true \
     && a2enmod mpm_prefork
 
-RUN apache2ctl -M
 
 ENV PORT=10000
 
