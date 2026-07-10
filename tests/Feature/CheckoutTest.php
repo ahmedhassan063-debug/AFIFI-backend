@@ -38,12 +38,20 @@ class CheckoutTest extends TestCase
         ];
     }
 
-    private function addCartItem(User $user, array $variantAttributes = [], int $quantity = 1): CartItem
+    private function addCartItem(User $user, array $variantAttributes = [], int $quantity = 1, ?float $unitPrice = 100): CartItem
     {
         $variant = ProductVariant::factory()->create(array_merge([
             'stock' => 10,
             'is_active' => true,
+            'price_override' => null,
         ], $variantAttributes));
+
+        if ($unitPrice !== null) {
+            $variant->product->update(['base_price' => $unitPrice]);
+            $variant->refresh()->load('product');
+        }
+
+        $resolvedPrice = $variant->price_override ?? (float) $variant->product->base_price;
 
         $cart = Cart::factory()->for($user)->create();
 
@@ -52,7 +60,7 @@ class CheckoutTest extends TestCase
             ->for($variant, 'productVariant')
             ->create([
                 'quantity' => $quantity,
-                'unit_price_snapshot' => 100,
+                'unit_price_snapshot' => $resolvedPrice,
             ]);
     }
 
@@ -216,5 +224,130 @@ class CheckoutTest extends TestCase
         $response->assertCreated();
         $response->assertJsonPath('data.shipping_fee', '0.00');
         $response->assertJsonPath('data.grand_total', '100.00');
+    }
+
+    public function test_checkout_uses_current_server_price_not_stale_cart_snapshot(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $variant = ProductVariant::factory()->create([
+            'stock' => 10,
+            'is_active' => true,
+            'price_override' => null,
+        ]);
+        $variant->product->update(['base_price' => 150]);
+
+        $cart = Cart::factory()->for($user)->create();
+        CartItem::factory()
+            ->for($cart)
+            ->for($variant, 'productVariant')
+            ->create([
+                'quantity' => 1,
+                'unit_price_snapshot' => 50,
+            ]);
+
+        $response = $this->postJson('/api/checkout', [
+            'payment_method' => 'cod',
+            'address' => $this->validAddress(),
+        ]);
+
+        $response->assertCreated();
+        $response->assertJsonPath('data.subtotal', '150.00');
+        $response->assertJsonPath('data.grand_total', '150.00');
+
+        $orderId = $response->json('data.id');
+        $this->assertDatabaseHas('order_items', [
+            'order_id' => $orderId,
+            'unit_price' => 150,
+            'line_total' => 150,
+        ]);
+    }
+
+    public function test_checkout_fails_with_inactive_product(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $variant = ProductVariant::factory()->create(['stock' => 10, 'is_active' => true]);
+        $variant->product->update(['is_active' => false]);
+
+        $cart = Cart::factory()->for($user)->create();
+        CartItem::factory()
+            ->for($cart)
+            ->for($variant, 'productVariant')
+            ->create([
+                'quantity' => 1,
+                'unit_price_snapshot' => 100,
+            ]);
+
+        $response = $this->postJson('/api/checkout', [
+            'payment_method' => 'cod',
+            'address' => $this->validAddress(),
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonFragment(['message' => 'Cart contains an unavailable product.']);
+    }
+
+    public function test_checkout_totals_include_coupon_discount_and_shipping(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+        $this->addCartItem($user, [], quantity: 2);
+
+        $coupon = Coupon::factory()->create([
+            'code' => 'SAVE20',
+            'type' => 'fixed',
+            'value' => 20,
+            'is_active' => true,
+            'starts_at' => now()->subDay(),
+            'expires_at' => now()->addMonth(),
+        ]);
+
+        $response = $this->postJson('/api/checkout', [
+            'payment_method' => 'cod',
+            'coupon_code' => $coupon->code,
+            'address' => $this->validAddress(),
+        ]);
+
+        $response->assertCreated();
+        $response->assertJsonPath('data.subtotal', '200.00');
+        $response->assertJsonPath('data.discount_total', '20.00');
+        $response->assertJsonPath('data.shipping_fee', '0.00');
+        $response->assertJsonPath('data.grand_total', '180.00');
+    }
+
+    public function test_second_checkout_fails_when_stock_is_exhausted_by_first(): void
+    {
+        $variant = ProductVariant::factory()->create(['stock' => 1, 'is_active' => true]);
+
+        $firstUser = User::factory()->create();
+        Sanctum::actingAs($firstUser);
+        $cart = Cart::factory()->for($firstUser)->create();
+        CartItem::factory()
+            ->for($cart)
+            ->for($variant, 'productVariant')
+            ->create(['quantity' => 1, 'unit_price_snapshot' => (float) $variant->product->base_price]);
+
+        $this->postJson('/api/checkout', [
+            'payment_method' => 'cod',
+            'address' => $this->validAddress(),
+        ])->assertCreated();
+
+        $secondUser = User::factory()->create();
+        Sanctum::actingAs($secondUser);
+        $secondCart = Cart::factory()->for($secondUser)->create();
+        CartItem::factory()
+            ->for($secondCart)
+            ->for($variant, 'productVariant')
+            ->create(['quantity' => 1, 'unit_price_snapshot' => (float) $variant->product->base_price]);
+
+        $this->postJson('/api/checkout', [
+            'payment_method' => 'cod',
+            'address' => $this->validAddress(),
+        ])
+            ->assertStatus(422)
+            ->assertJsonFragment(['message' => 'Cart contains a product variant with insufficient stock.']);
     }
 }

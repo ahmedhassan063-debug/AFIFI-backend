@@ -24,6 +24,16 @@ class OrderService
         'returned' => [],
     ];
 
+    private const array CANCELLATION_RESTOCK_STATUSES = [
+        'pending_confirmation',
+        'confirmed',
+        'processing',
+    ];
+
+    public function __construct(private readonly InventoryService $inventoryService)
+    {
+    }
+
     public function createOrderFromCartSnapshot(Cart|int $cart, array $orderData, array $addressData): Order
     {
         return DB::transaction(function () use ($cart, $orderData, $addressData) {
@@ -118,6 +128,10 @@ class OrderService
 
             $order->update($attributes);
 
+            if ($status === 'cancelled' && in_array($fromStatus, self::CANCELLATION_RESTOCK_STATUSES, true)) {
+                $this->restoreInventoryForCancelledOrder($order);
+            }
+
             $this->recordStatusHistory($order, $fromStatus, $status, $note, $changedBy);
 
             return $order->refresh();
@@ -201,6 +215,26 @@ class OrderService
 
         if ($allowedTransitions === null || ! in_array($toStatus, $allowedTransitions, true)) {
             throw new RuntimeException("Invalid order status transition from \"{$fromStatus}\" to \"{$toStatus}\".");
+        }
+    }
+
+    private function restoreInventoryForCancelledOrder(Order $order): void
+    {
+        $order->loadMissing('items');
+
+        foreach ($order->items as $item) {
+            if (! $item->product_variant_id || $item->quantity < 1) {
+                continue;
+            }
+
+            $this->inventoryService->restock(
+                $item->product_variant_id,
+                $item->quantity,
+                'Order cancelled.',
+                null,
+                Order::class,
+                $order->id
+            );
         }
     }
 

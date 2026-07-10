@@ -28,6 +28,7 @@ class CheckoutService
             $cart->loadMissing(['items.productVariant.product', 'items.productVariant.color', 'items.productVariant.size']);
             $this->validateCart($cart);
             $this->validateCheckoutData($data);
+            $cart = $this->cartService->refreshUnitPrices($cart);
 
             $currency = $this->resolveCurrency($data['currency_id'] ?? null, $data['currency_code'] ?? null);
             $shippingFee = $this->resolveShippingFee($data);
@@ -62,7 +63,7 @@ class CheckoutService
                 'currency_id' => $currency->id,
                 'currency_code' => $currency->code,
                 'exchange_rate' => $currency->exchange_rate,
-                'status' => $data['status'] ?? 'pending_confirmation',
+                'status' => 'pending_confirmation',
                 'payment_status' => 'unpaid',
                 'payment_method' => $data['payment_method'],
                 'subtotal' => $totals['subtotal'],
@@ -71,7 +72,6 @@ class CheckoutService
                 'grand_total' => $grandTotal,
                 'coupon_id' => $coupon?->id,
                 'customer_notes' => $data['customer_notes'] ?? null,
-                'admin_notes' => $data['admin_notes'] ?? null,
             ], $data['address']);
 
             foreach ($reservations as $reservation) {
@@ -105,6 +105,12 @@ class CheckoutService
         foreach ($cart->items as $item) {
             if (! $item->productVariant || ! $item->productVariant->is_active) {
                 throw new RuntimeException('Cart contains an unavailable product variant.');
+            }
+
+            $product = $item->productVariant->product;
+
+            if (! $product || ! $product->is_active) {
+                throw new RuntimeException('Cart contains an unavailable product.');
             }
 
             if ($this->inventoryService->calculateAvailableStock($item->productVariant) < $item->quantity) {

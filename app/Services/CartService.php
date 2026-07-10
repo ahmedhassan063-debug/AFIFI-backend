@@ -104,6 +104,29 @@ class CartService
         ];
     }
 
+    /**
+     * Re-snapshot each line item from current variant/product pricing before checkout.
+     */
+    public function refreshUnitPrices(Cart|int $cart): Cart
+    {
+        $cart = $this->resolveCart($cart);
+        $cart->loadMissing(['items.productVariant.product']);
+
+        foreach ($cart->items as $item) {
+            $variant = $item->productVariant;
+
+            if (! $variant || ! $variant->product) {
+                continue;
+            }
+
+            $item->update([
+                'unit_price_snapshot' => $this->resolveUnitPrice($variant),
+            ]);
+        }
+
+        return $cart->refresh()->loadMissing(['items.productVariant.product', 'items.productVariant.color', 'items.productVariant.size']);
+    }
+
     private function resolveUnitPrice(ProductVariant $variant): float
     {
         if ($variant->price_override !== null) {
