@@ -24,18 +24,10 @@ COPY . .
 COPY docker/php.ini /usr/local/etc/php/conf.d/99-app.ini
 COPY docker/render-entrypoint.sh /usr/local/bin/render-entrypoint.sh
 
-RUN composer dump-autoload --optimize \
-    && php artisan config:clear \
-    && php artisan route:clear \
-    && php artisan view:clear \
-    && mkdir -p storage/framework/sessions storage/framework/views storage/framework/cache storage/logs bootstrap/cache \
-    && chown -R www-data:www-data storage bootstrap/cache \
-    && chmod -R 775 storage bootstrap/cache \
-    && chmod +x /usr/local/bin/render-entrypoint.sh
-
-RUN a2dismod mpm_event || true \
+RUN rm -f /etc/apache2/mods-enabled/mpm_event.* \
+    && rm -f /etc/apache2/mods-enabled/mpm_worker.* \
+    && rm -f /etc/apache2/mods-enabled/mpm_prefork.* \
     && a2enmod mpm_prefork
-
 
 ENV PORT=10000
 
