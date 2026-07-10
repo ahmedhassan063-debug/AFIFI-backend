@@ -41,6 +41,10 @@ class ProductVariantController extends Controller
             ->when($request->filled('in_stock'), fn ($query) => $request->boolean('in_stock')
                 ? $query->where('stock', '>', 0)
                 : $query->where('stock', 0))
+            ->when($request->routeIs('catalog.*'), function ($query) {
+                $query->where('is_active', true)
+                    ->whereHas('product', fn ($productQuery) => $productQuery->where('is_active', true));
+            })
             ->orderBy(in_array($sort, $allowedSorts, true) ? $sort : 'created_at', $direction)
             ->paginate($this->perPage($request));
 
@@ -58,9 +62,13 @@ class ProductVariantController extends Controller
             ->setStatusCode(201);
     }
 
-    public function show(ProductVariant $productVariant): ProductVariantResource
+    public function show(Request $request, ProductVariant $productVariant): ProductVariantResource
     {
         $this->authorize('view', $productVariant);
+
+        if ($request->routeIs('catalog.*') && (! $productVariant->is_active || ! $productVariant->product?->is_active)) {
+            abort(404);
+        }
 
         return new ProductVariantResource($productVariant->load(['product', 'color', 'size']));
     }

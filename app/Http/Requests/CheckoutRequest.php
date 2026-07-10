@@ -16,7 +16,6 @@ class CheckoutRequest extends FormRequest
         return [
             'currency_id' => ['sometimes', 'integer', 'exists:currencies,id'],
             'currency_code' => ['sometimes', 'string', 'size:3'],
-            'shipping_fee' => ['sometimes', 'numeric', 'min:0'],
             'shipping_rate_id' => ['sometimes', 'integer', 'exists:shipping_rates,id'],
             'coupon_id' => ['sometimes', 'integer', 'exists:coupons,id'],
             'coupon_code' => ['sometimes', 'string', 'max:50'],

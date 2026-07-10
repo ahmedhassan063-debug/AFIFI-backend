@@ -50,6 +50,7 @@ class ProductController extends Controller
             ->when($request->filled('is_featured_drop'), fn ($query) => $query->where('is_featured_drop', $request->boolean('is_featured_drop')))
             ->when($request->filled('min_price'), fn ($query) => $query->where('base_price', '>=', $request->input('min_price')))
             ->when($request->filled('max_price'), fn ($query) => $query->where('base_price', '<=', $request->input('max_price')))
+            ->when($request->routeIs('catalog.*'), fn ($query) => $query->where('is_active', true))
             ->orderBy(in_array($sort, $allowedSorts, true) ? $sort : 'sort_order', $direction)
             ->paginate($this->perPage($request));
 
@@ -67,9 +68,13 @@ class ProductController extends Controller
             ->setStatusCode(201);
     }
 
-    public function show(Product $product): ProductResource
+    public function show(Request $request, Product $product): ProductResource
     {
         $this->authorize('view', $product);
+
+        if ($request->routeIs('catalog.*') && ! $product->is_active) {
+            abort(404);
+        }
 
         return new ProductResource($product->load(['brand', 'category', 'variants.color', 'variants.size', 'images.media', 'tags', 'collections']));
     }

@@ -68,4 +68,19 @@ class AuthorizationTest extends TestCase
 
         $response->assertStatus(404);
     }
+
+    public function test_super_admin_role_permissions_cannot_be_modified(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole('super_admin');
+        Sanctum::actingAs($admin);
+
+        $role = \Spatie\Permission\Models\Role::query()->where('name', 'super_admin')->firstOrFail();
+
+        $response = $this->putJson("/api/admin/roles/{$role->id}/permissions", [
+            'permissions' => [],
+        ]);
+
+        $response->assertStatus(403);
+    }
 }

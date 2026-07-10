@@ -200,4 +200,21 @@ class CheckoutTest extends TestCase
         $this->assertDatabaseMissing('cart_items', ['id' => $cartItem->id]);
         $this->assertSame(0, Cart::query()->find($cartItem->cart_id)->items()->count());
     }
+
+    public function test_checkout_ignores_client_supplied_shipping_fee(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+        $this->addCartItem($user, [], quantity: 1);
+
+        $response = $this->postJson('/api/checkout', [
+            'payment_method' => 'cod',
+            'shipping_fee' => 0,
+            'address' => $this->validAddress(),
+        ]);
+
+        $response->assertCreated();
+        $response->assertJsonPath('data.shipping_fee', '0.00');
+        $response->assertJsonPath('data.grand_total', '100.00');
+    }
 }

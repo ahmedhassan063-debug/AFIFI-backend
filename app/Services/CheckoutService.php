@@ -136,10 +136,6 @@ class CheckoutService
 
     private function resolveShippingFee(array $data): float
     {
-        if (array_key_exists('shipping_fee', $data)) {
-            return round((float) $data['shipping_fee'], 2);
-        }
-
         if (! empty($data['shipping_rate_id'])) {
             $rate = ShippingRate::query()
                 ->whereKey($data['shipping_rate_id'])

@@ -37,6 +37,7 @@ class CategoryController extends Controller
             ->when($request->filled('parent_id'), fn ($query) => $query->where('parent_id', $request->integer('parent_id')))
             ->when($request->filled('gender'), fn ($query) => $query->where('gender', $request->string('gender')->toString()))
             ->when($request->filled('is_active'), fn ($query) => $query->where('is_active', $request->boolean('is_active')))
+            ->when($request->routeIs('catalog.*'), fn ($query) => $query->where('is_active', true))
             ->orderBy(in_array($sort, $allowedSorts, true) ? $sort : 'sort_order', $direction)
             ->paginate($this->perPage($request));
 
@@ -54,9 +55,13 @@ class CategoryController extends Controller
             ->setStatusCode(201);
     }
 
-    public function show(Category $category): CategoryResource
+    public function show(Request $request, Category $category): CategoryResource
     {
         $this->authorize('view', $category);
+
+        if ($request->routeIs('catalog.*') && ! $category->is_active) {
+            abort(404);
+        }
 
         return new CategoryResource($category->load(['parent', 'children', 'imageMedia']));
     }

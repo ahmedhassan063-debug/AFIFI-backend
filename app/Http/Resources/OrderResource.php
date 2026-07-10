@@ -33,7 +33,10 @@ class OrderResource extends JsonResource
             'grand_total' => $this->grand_total,
             'coupon_id' => $this->coupon_id,
             'customer_notes' => $this->customer_notes,
-            'admin_notes' => $this->admin_notes,
+            'admin_notes' => $this->when(
+                $request->user()?->can('orders.view'),
+                $this->admin_notes
+            ),
             'whatsapp_sent_at' => $this->whatsapp_sent_at,
             'confirmed_at' => $this->confirmed_at,
             'cancelled_at' => $this->cancelled_at,
