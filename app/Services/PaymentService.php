@@ -5,12 +5,17 @@ namespace App\Services;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Models\Refund;
+use App\Services\ManualPaymentService;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 class PaymentService
 {
+    public function __construct(private readonly ManualPaymentService $manualPaymentService)
+    {
+    }
+
     public function createPaymentRecord(Order|int $order, array $data): Payment
     {
         $order = $this->resolveOrder($order);
@@ -31,6 +36,49 @@ class PaymentService
                 'status' => $data['status'] ?? 'pending',
             ]
         ));
+    }
+
+    public function submitProviderReference(Order|int $order, string $providerReference): Payment
+    {
+        return DB::transaction(function () use ($order, $providerReference) {
+            $order = $this->resolveOrder($order);
+            $order = Order::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
+
+            if ($order->status === 'cancelled') {
+                throw new RuntimeException('Cannot submit payment reference for this order.');
+            }
+
+            if ($order->payment_status !== 'unpaid') {
+                throw new RuntimeException('Cannot submit payment reference for a paid or finalized order.');
+            }
+
+            $payment = $order->payments()
+                ->where('status', 'pending')
+                ->whereIn('provider', ManualPaymentService::SUPPORTED_METHODS)
+                ->latest('id')
+                ->lockForUpdate()
+                ->first();
+
+            if ($payment === null) {
+                throw new RuntimeException('No pending manual payment found for this order.');
+            }
+
+            if (! in_array($payment->status, ['pending'], true)) {
+                throw new RuntimeException('Payment reference cannot be modified after payment is finalized.');
+            }
+
+            $normalizedReference = $this->manualPaymentService->normalizeProviderReference($providerReference);
+
+            if ($normalizedReference === '') {
+                throw new RuntimeException('Payment reference is required.');
+            }
+
+            $payment->update([
+                'provider_reference' => $normalizedReference,
+            ]);
+
+            return $payment->refresh();
+        });
     }
 
     public function markPaymentAsPaid(Payment|int $payment, ?string $providerReference = null, mixed $paidAt = null): Payment

@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\SubmitPaymentReferenceRequest;
 use App\Http\Requests\UpdateOrderStatusRequest;
 use App\Http\Resources\OrderResource;
+use App\Http\Resources\PaymentResource;
 use App\Models\Order;
 use App\Services\OrderService;
+use App\Services\PaymentService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,8 +19,10 @@ class OrderController extends Controller
 {
     use AuthorizesRequests;
 
-    public function __construct(private readonly OrderService $orderService)
-    {
+    public function __construct(
+        private readonly OrderService $orderService,
+        private readonly PaymentService $paymentService,
+    ) {
     }
 
     public function index(Request $request): AnonymousResourceCollection
@@ -117,6 +122,22 @@ class OrderController extends Controller
         );
 
         return new OrderResource($order->load(['statusHistory']));
+    }
+
+    public function submitPaymentReference(SubmitPaymentReferenceRequest $request, Order $order): JsonResponse
+    {
+        $this->ensureOrderBelongsToUser($order);
+        $this->authorize('submitPaymentReference', $order);
+
+        $payment = $this->paymentService->submitProviderReference(
+            $order,
+            $request->validated('provider_reference')
+        );
+
+        return response()->json([
+            'message' => 'Payment reference submitted successfully.',
+            'payment' => new PaymentResource($payment),
+        ]);
     }
 
     public function cancel(Order $order): JsonResponse

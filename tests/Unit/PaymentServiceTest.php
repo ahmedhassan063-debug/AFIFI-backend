@@ -17,7 +17,7 @@ class PaymentServiceTest extends TestCase
     {
         parent::setUp();
 
-        $this->service = new PaymentService();
+        $this->service = app(PaymentService::class);
     }
 
     private function makeOrder(float $grandTotal): Order

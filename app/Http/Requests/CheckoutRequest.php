@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests;
 
+use App\Services\ManualPaymentService;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class CheckoutRequest extends FormRequest
 {
@@ -19,8 +21,8 @@ class CheckoutRequest extends FormRequest
             'shipping_rate_id' => ['sometimes', 'integer', 'exists:shipping_rates,id'],
             'coupon_id' => ['sometimes', 'integer', 'exists:coupons,id'],
             'coupon_code' => ['sometimes', 'string', 'max:50'],
-            'payment_method' => ['required', 'string', 'max:30'],
-            'payment_provider' => ['sometimes', 'string', 'max:30'],
+            'payment_method' => ['required', 'string', 'max:30', Rule::in(ManualPaymentService::SUPPORTED_METHODS)],
+            'payment_provider' => ['prohibited'],
             'payment_metadata' => ['sometimes', 'nullable', 'array'],
             'customer_notes' => ['sometimes', 'nullable', 'string'],
             'reservation_expires_at' => ['sometimes', 'date'],

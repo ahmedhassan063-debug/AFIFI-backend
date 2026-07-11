@@ -9,10 +9,13 @@ use App\Models\Order;
 use App\Models\ProductVariant;
 use App\Models\User;
 use Laravel\Sanctum\Sanctum;
+use Tests\Support\EnablesManualPayments;
 use Tests\TestCase;
 
 class OrderCancellationTest extends TestCase
 {
+    use EnablesManualPayments;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -22,6 +25,8 @@ class OrderCancellationTest extends TestCase
             'is_default' => true,
             'is_active' => true,
         ]);
+
+        $this->seedEnabledManualPayments();
     }
 
     public function test_cancelling_order_restock_inventory(): void
@@ -40,7 +45,7 @@ class OrderCancellationTest extends TestCase
             ]);
 
         $checkout = $this->postJson('/api/checkout', [
-            'payment_method' => 'cod',
+            'payment_method' => 'instapay',
             'address' => [
                 'full_name' => 'Jane Doe',
                 'phone' => '01000000000',

@@ -24,6 +24,14 @@ class CoreSettingSeeder extends Seeder
             ['key' => 'media.default_disk', 'value' => 'public', 'type' => 'string', 'group' => 'media', 'description' => 'Default media storage disk.', 'is_public' => false],
             ['key' => 'seo.default_title', 'value' => 'AFIFI', 'type' => 'string', 'group' => 'seo', 'description' => 'Default SEO title.', 'is_public' => true],
             ['key' => 'seo.default_description', 'value' => 'AFIFI online store.', 'type' => 'string', 'group' => 'seo', 'description' => 'Default SEO description.', 'is_public' => true],
+            ['key' => 'payment.instapay.enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'payment', 'description' => 'Whether InstaPay manual payments are enabled.', 'is_public' => true],
+            ['key' => 'payment.instapay.account_name', 'value' => null, 'type' => 'string', 'group' => 'payment', 'description' => 'InstaPay account holder name.', 'is_public' => true],
+            ['key' => 'payment.instapay.account_identifier', 'value' => null, 'type' => 'string', 'group' => 'payment', 'description' => 'InstaPay account identifier (e.g. payment address).', 'is_public' => true],
+            ['key' => 'payment.instapay.instructions', 'value' => null, 'type' => 'string', 'group' => 'payment', 'description' => 'Customer instructions for InstaPay transfers.', 'is_public' => true],
+            ['key' => 'payment.vodafone_cash.enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'payment', 'description' => 'Whether Vodafone Cash manual payments are enabled.', 'is_public' => true],
+            ['key' => 'payment.vodafone_cash.phone', 'value' => null, 'type' => 'string', 'group' => 'payment', 'description' => 'Vodafone Cash wallet phone number.', 'is_public' => true],
+            ['key' => 'payment.vodafone_cash.account_name', 'value' => null, 'type' => 'string', 'group' => 'payment', 'description' => 'Vodafone Cash account holder name.', 'is_public' => true],
+            ['key' => 'payment.vodafone_cash.instructions', 'value' => null, 'type' => 'string', 'group' => 'payment', 'description' => 'Customer instructions for Vodafone Cash transfers.', 'is_public' => true],
         ];
 
         foreach ($settings as $setting) {

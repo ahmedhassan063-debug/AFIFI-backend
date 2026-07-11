@@ -37,6 +37,11 @@ class OrderPolicy
         return $this->owns($user, $order) || $user->can('orders.update');
     }
 
+    public function submitPaymentReference(User $user, Order $order): bool
+    {
+        return $this->owns($user, $order);
+    }
+
     public function updateStatus(User $user, Order $order): bool
     {
         return $user->can('orders.update');

@@ -11,10 +11,13 @@ use App\Models\Payment;
 use App\Models\ProductVariant;
 use App\Models\User;
 use Laravel\Sanctum\Sanctum;
+use Tests\Support\EnablesManualPayments;
 use Tests\TestCase;
 
 class CheckoutTest extends TestCase
 {
+    use EnablesManualPayments;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -24,6 +27,8 @@ class CheckoutTest extends TestCase
             'is_default' => true,
             'is_active' => true,
         ]);
+
+        $this->seedEnabledManualPayments();
     }
 
     private function validAddress(): array
@@ -71,7 +76,7 @@ class CheckoutTest extends TestCase
         $this->addCartItem($user);
 
         $response = $this->postJson('/api/checkout', [
-            'payment_method' => 'cod',
+            'payment_method' => 'instapay',
             'address' => $this->validAddress(),
         ]);
 
@@ -86,7 +91,7 @@ class CheckoutTest extends TestCase
         Sanctum::actingAs($user);
 
         $response = $this->postJson('/api/checkout', [
-            'payment_method' => 'cod',
+            'payment_method' => 'instapay',
             'address' => $this->validAddress(),
         ]);
 
@@ -101,7 +106,7 @@ class CheckoutTest extends TestCase
         $this->addCartItem($user, ['stock' => 1], quantity: 5);
 
         $response = $this->postJson('/api/checkout', [
-            'payment_method' => 'cod',
+            'payment_method' => 'instapay',
             'address' => $this->validAddress(),
         ]);
 
@@ -121,7 +126,7 @@ class CheckoutTest extends TestCase
         ]);
 
         $response = $this->postJson('/api/checkout', [
-            'payment_method' => 'cod',
+            'payment_method' => 'instapay',
             'coupon_code' => $coupon->code,
             'address' => $this->validAddress(),
         ]);
@@ -137,7 +142,7 @@ class CheckoutTest extends TestCase
         $this->addCartItem($user, ['is_active' => false]);
 
         $response = $this->postJson('/api/checkout', [
-            'payment_method' => 'cod',
+            'payment_method' => 'instapay',
             'address' => $this->validAddress(),
         ]);
 
@@ -152,7 +157,7 @@ class CheckoutTest extends TestCase
         $this->addCartItem($user, [], quantity: 2);
 
         $response = $this->postJson('/api/checkout', [
-            'payment_method' => 'cod',
+            'payment_method' => 'instapay',
             'address' => $this->validAddress(),
         ]);
 
@@ -178,7 +183,7 @@ class CheckoutTest extends TestCase
         $this->addCartItem($user);
 
         $response = $this->postJson('/api/checkout', [
-            'payment_method' => 'cod',
+            'payment_method' => 'instapay',
             'address' => $this->validAddress(),
         ]);
 
@@ -187,9 +192,10 @@ class CheckoutTest extends TestCase
 
         $this->assertDatabaseHas('payments', [
             'order_id' => $orderId,
-            'provider' => 'cod',
+            'provider' => 'instapay',
             'amount' => 100,
             'status' => 'pending',
+            'provider_reference' => null,
         ]);
     }
 
@@ -200,7 +206,7 @@ class CheckoutTest extends TestCase
         $cartItem = $this->addCartItem($user);
 
         $response = $this->postJson('/api/checkout', [
-            'payment_method' => 'cod',
+            'payment_method' => 'instapay',
             'address' => $this->validAddress(),
         ]);
 
@@ -216,7 +222,7 @@ class CheckoutTest extends TestCase
         $this->addCartItem($user, [], quantity: 1);
 
         $response = $this->postJson('/api/checkout', [
-            'payment_method' => 'cod',
+            'payment_method' => 'instapay',
             'shipping_fee' => 0,
             'address' => $this->validAddress(),
         ]);
@@ -248,7 +254,7 @@ class CheckoutTest extends TestCase
             ]);
 
         $response = $this->postJson('/api/checkout', [
-            'payment_method' => 'cod',
+            'payment_method' => 'instapay',
             'address' => $this->validAddress(),
         ]);
 
@@ -282,7 +288,7 @@ class CheckoutTest extends TestCase
             ]);
 
         $response = $this->postJson('/api/checkout', [
-            'payment_method' => 'cod',
+            'payment_method' => 'instapay',
             'address' => $this->validAddress(),
         ]);
 
@@ -306,7 +312,7 @@ class CheckoutTest extends TestCase
         ]);
 
         $response = $this->postJson('/api/checkout', [
-            'payment_method' => 'cod',
+            'payment_method' => 'instapay',
             'coupon_code' => $coupon->code,
             'address' => $this->validAddress(),
         ]);
@@ -331,7 +337,7 @@ class CheckoutTest extends TestCase
             ->create(['quantity' => 1, 'unit_price_snapshot' => (float) $variant->product->base_price]);
 
         $this->postJson('/api/checkout', [
-            'payment_method' => 'cod',
+            'payment_method' => 'instapay',
             'address' => $this->validAddress(),
         ])->assertCreated();
 
@@ -344,10 +350,79 @@ class CheckoutTest extends TestCase
             ->create(['quantity' => 1, 'unit_price_snapshot' => (float) $variant->product->base_price]);
 
         $this->postJson('/api/checkout', [
-            'payment_method' => 'cod',
+            'payment_method' => 'instapay',
             'address' => $this->validAddress(),
         ])
             ->assertStatus(422)
             ->assertJsonFragment(['message' => 'Cart contains a product variant with insufficient stock.']);
+    }
+
+    public function test_checkout_succeeds_with_vodafone_cash_when_enabled(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+        $this->addCartItem($user);
+
+        $response = $this->postJson('/api/checkout', [
+            'payment_method' => 'vodafone_cash',
+            'address' => $this->validAddress(),
+        ]);
+
+        $response->assertCreated();
+        $response->assertJsonPath('data.payment_method', 'vodafone_cash');
+        $this->assertDatabaseHas('payments', [
+            'order_id' => $response->json('data.id'),
+            'provider' => 'vodafone_cash',
+            'status' => 'pending',
+            'provider_reference' => null,
+        ]);
+    }
+
+    public function test_checkout_rejects_disabled_payment_method(): void
+    {
+        $this->seedEnabledManualPayments(['payment.instapay.enabled' => false]);
+
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+        $this->addCartItem($user);
+
+        $response = $this->postJson('/api/checkout', [
+            'payment_method' => 'instapay',
+            'address' => $this->validAddress(),
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonFragment(['message' => 'Selected payment method is not available.']);
+    }
+
+    public function test_checkout_rejects_unsupported_payment_method(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+        $this->addCartItem($user);
+
+        $response = $this->postJson('/api/checkout', [
+            'payment_method' => 'cod',
+            'address' => $this->validAddress(),
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['payment_method']);
+    }
+
+    public function test_checkout_rejects_client_supplied_payment_provider(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+        $this->addCartItem($user);
+
+        $response = $this->postJson('/api/checkout', [
+            'payment_method' => 'instapay',
+            'payment_provider' => 'stripe',
+            'address' => $this->validAddress(),
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['payment_provider']);
     }
 }

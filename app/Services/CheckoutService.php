@@ -16,6 +16,7 @@ class CheckoutService
         private readonly CartService $cartService,
         private readonly CouponService $couponService,
         private readonly InventoryService $inventoryService,
+        private readonly ManualPaymentService $manualPaymentService,
         private readonly OrderService $orderService,
         private readonly PaymentService $paymentService,
     ) {
@@ -27,7 +28,7 @@ class CheckoutService
             $cart = $this->resolveCart($cart);
             $cart->loadMissing(['items.productVariant.product', 'items.productVariant.color', 'items.productVariant.size']);
             $this->validateCart($cart);
-            $this->validateCheckoutData($data);
+            $paymentMethod = $this->validateCheckoutData($data);
             $cart = $this->cartService->refreshUnitPrices($cart);
 
             $currency = $this->resolveCurrency($data['currency_id'] ?? null, $data['currency_code'] ?? null);
@@ -65,7 +66,7 @@ class CheckoutService
                 'exchange_rate' => $currency->exchange_rate,
                 'status' => 'pending_confirmation',
                 'payment_status' => 'unpaid',
-                'payment_method' => $data['payment_method'],
+                'payment_method' => $paymentMethod,
                 'subtotal' => $totals['subtotal'],
                 'shipping_fee' => $shippingFee,
                 'discount_total' => $discountTotal,
@@ -83,7 +84,7 @@ class CheckoutService
             }
 
             $this->paymentService->createPaymentRecord($order, [
-                'provider' => $data['payment_provider'] ?? $data['payment_method'],
+                'provider' => $paymentMethod,
                 'amount' => $grandTotal,
                 'currency' => $currency->code,
                 'status' => 'pending',
@@ -119,7 +120,7 @@ class CheckoutService
         }
     }
 
-    private function validateCheckoutData(array $data): void
+    private function validateCheckoutData(array $data): string
     {
         if (empty($data['payment_method'])) {
             throw new RuntimeException('Payment method is required.');
@@ -128,6 +129,11 @@ class CheckoutService
         if (empty($data['address']) || ! is_array($data['address'])) {
             throw new RuntimeException('Shipping address snapshot is required.');
         }
+
+        $paymentMethod = $this->manualPaymentService->normalizePaymentMethod($data['payment_method']);
+        $this->manualPaymentService->assertPaymentMethodEnabled($paymentMethod);
+
+        return $paymentMethod;
     }
 
     private function resolveCurrency(?int $currencyId = null, ?string $currencyCode = null): Currency

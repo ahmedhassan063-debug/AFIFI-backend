@@ -94,6 +94,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::prefix('orders')->name('orders.')->group(function (): void {
         Route::get('/', [OrderController::class, 'index'])->name('index');
         Route::get('{order}', [OrderController::class, 'show'])->name('show');
+        Route::put('{order}/payment-reference', [OrderController::class, 'submitPaymentReference'])->name('payment-reference.update');
         Route::post('{order}/cancel', [OrderController::class, 'cancel'])->name('cancel');
     });
 
