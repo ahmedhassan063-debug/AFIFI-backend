@@ -16,7 +16,10 @@ class ReturnRequestResource extends JsonResource
             'type' => $this->type,
             'reason' => $this->reason,
             'status' => $this->status,
-            'admin_notes' => $this->admin_notes,
+            'admin_notes' => $this->when(
+                $request->user()?->can('orders.view'),
+                $this->admin_notes
+            ),
             'requested_at' => $this->requested_at,
             'resolved_at' => $this->resolved_at,
             'order_item' => $this->whenLoaded('orderItem', fn () => [

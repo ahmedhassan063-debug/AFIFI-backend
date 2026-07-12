@@ -30,6 +30,14 @@ class OrderService
         'processing',
     ];
 
+    private const string RETURN_ELIGIBLE_ORDER_STATUS = 'delivered';
+
+    private const array ACTIVE_RETURN_REQUEST_STATUSES = [
+        'pending',
+        'approved',
+        'completed',
+    ];
+
     public function __construct(private readonly InventoryService $inventoryService)
     {
     }
@@ -173,23 +181,42 @@ class OrderService
 
     public function createReturnRequest(Order|int $order, array $data): ReturnRequest
     {
-        $order = $this->resolveOrder($order);
+        return DB::transaction(function () use ($order, $data) {
+            $order = $this->resolveOrder($order);
+            $order = Order::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
+            $orderItemId = (int) $data['order_item_id'];
 
-        return ReturnRequest::query()->create(array_merge(
-            Arr::only($data, [
-                'order_item_id',
-                'type',
-                'reason',
-                'admin_notes',
-                'requested_at',
-                'resolved_at',
-            ]),
-            [
-                'order_id' => $order->id,
-                'status' => 'pending',
-                'requested_at' => $data['requested_at'] ?? now(),
-            ]
-        ));
+            if ($order->status !== self::RETURN_ELIGIBLE_ORDER_STATUS) {
+                throw new RuntimeException('Returns can only be requested for delivered orders.');
+            }
+
+            $activeReturnExists = ReturnRequest::query()
+                ->where('order_id', $order->id)
+                ->where('order_item_id', $orderItemId)
+                ->whereIn('status', self::ACTIVE_RETURN_REQUEST_STATUSES)
+                ->lockForUpdate()
+                ->exists();
+
+            if ($activeReturnExists) {
+                throw new RuntimeException('A return request already exists for this item.');
+            }
+
+            return ReturnRequest::query()->create(array_merge(
+                Arr::only($data, [
+                    'order_item_id',
+                    'type',
+                    'reason',
+                    'admin_notes',
+                    'requested_at',
+                    'resolved_at',
+                ]),
+                [
+                    'order_id' => $order->id,
+                    'status' => 'pending',
+                    'requested_at' => $data['requested_at'] ?? now(),
+                ]
+            ));
+        });
     }
 
     public function updateReturnRequestStatus(
