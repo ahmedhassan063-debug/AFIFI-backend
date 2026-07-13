@@ -227,5 +227,6 @@ Route::middleware(['auth:sanctum'])->prefix('admin')->name('admin.')->group(func
 
     Route::middleware('permission:payments.refund')->group(function (): void {
         Route::post('payments/{payment}/refunds', [PaymentController::class, 'refund'])->name('payments.refunds.store');
+        Route::patch('payments/{payment}/refunds/{refund}/status', [PaymentController::class, 'updateRefundStatus'])->name('payments.refunds.status.update');
     });
 });

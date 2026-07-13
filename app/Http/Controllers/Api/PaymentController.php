@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreRefundRequest;
 use App\Http\Requests\UpdatePaymentRequest;
+use App\Http\Requests\UpdateRefundRequest;
 use App\Http\Resources\PaymentResource;
 use App\Http\Resources\RefundResource;
 use App\Models\Payment;
+use App\Models\Refund;
 use App\Services\PaymentService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
@@ -87,6 +89,30 @@ class PaymentController extends Controller
         return (new RefundResource($refund->load(['payment', 'order'])))
             ->response()
             ->setStatusCode(201);
+    }
+
+    public function updateRefundStatus(UpdateRefundRequest $request, Payment $payment, Refund $refund): RefundResource
+    {
+        $this->authorize('refund', $payment);
+        $data = $request->validated();
+
+        abort_unless((int) $refund->payment_id === $payment->id, 403);
+
+        if (array_key_exists('payment_id', $data)) {
+            abort_unless((int) $data['payment_id'] === $payment->id, 403);
+        }
+
+        if (array_key_exists('order_id', $data)) {
+            abort_unless((int) $data['order_id'] === $payment->order_id, 403);
+        }
+
+        $refund = $this->paymentService->updateRefundStatus(
+            $refund,
+            $data['status'] ?? $refund->status,
+            $data['processed_at'] ?? null
+        );
+
+        return new RefundResource($refund->load(['payment', 'order']));
     }
 
     private function perPage(Request $request): int
